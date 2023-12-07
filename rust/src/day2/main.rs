@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 const RED_CUBES: i32 = 12;
 const GREEN_CUBES: i32 = 13;
 const BLUE_CUBES: i32 = 14;
 
+#[derive(Eq, Hash, PartialEq)]
 enum Color {
     Red,
     Green,
@@ -9,7 +12,7 @@ enum Color {
 }
 
 impl Color {
-    fn get_max_cubes(&self) -> i32 {
+    fn get_number_of_cubes(&self) -> i32 {
         match self {
             Color::Red => RED_CUBES,
             Color::Green => GREEN_CUBES,
@@ -44,13 +47,7 @@ fn check_possible(input: &str) -> bool {
         for color in [Color::Red, Color::Green, Color::Blue].iter() {
             if input[i..].starts_with(color.get_str()) {
                 let cubes = extract_cubes(input, i);
-                if cubes > color.get_max_cubes() {
-                    println!(
-                        "Too many {} cubes: {} > {}",
-                        color.get_str(),
-                        cubes,
-                        color.get_max_cubes()
-                    );
+                if cubes > color.get_number_of_cubes() {
                     return false;
                 }
             }
@@ -59,10 +56,30 @@ fn check_possible(input: &str) -> bool {
     true
 }
 
+fn get_max_cubes(input: &str) -> HashMap<&Color, i32> {
+    let mut max_cubes = HashMap::<&Color, i32>::new();
+    for i in 0..input.len() {
+        for color in [Color::Red, Color::Green, Color::Blue].iter() {
+            if input[i..].starts_with(color.get_str()) {
+                let cubes = extract_cubes(input, i);
+                if max_cubes.get(color).is_none() {
+                    max_cubes.insert(color, cubes);
+                } else {
+                    let current_cubes = max_cubes.get(color).unwrap();
+                    if cubes > *current_cubes {
+                        max_cubes.insert(color, cubes);
+                    }
+                }
+            }
+        }
+    }
+    max_cubes
+}
+
 fn main() {
     println!("Starting day2!");
 
-    let input = include_str!("./input.txt")
+    let part1 = include_str!("./input.txt")
         .lines()
         .enumerate()
         .map(|(i, line)| {
@@ -72,6 +89,19 @@ fn main() {
             return 0;
         })
         .sum::<i32>();
+    println!("Result part 1: {}", part1);
 
-    println!("Result: {}", input);
+    let part2 = include_str!("./input.txt")
+        .lines()
+        .map(get_max_cubes)
+        .map(|max_cubes| {
+            let mut mult = 1;
+            for (_, cubes) in max_cubes.iter() {
+                mult *= cubes;
+            }
+            mult
+        })
+        .sum::<i32>();
+
+    println!("Result part 2: {}", part2);
 }
