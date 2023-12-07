@@ -79,7 +79,7 @@ fn find_first_and_last_number_in_string(input: &str) -> i32 {
 fn main() {
     println!("Starting day1 part2!");
 
-    let input = include_str!("./d1.txt")
+    let input = include_str!("./input.txt")
         .lines()
         .map(find_first_and_last_number_in_string)
         .sum::<i32>();
