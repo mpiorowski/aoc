@@ -1,6 +1,7 @@
 mod day1;
 mod day2;
 mod day3;
+mod day4;
 
 trait Runner {
     fn name(&self) -> &str;
@@ -15,10 +16,10 @@ fn print_runner(r: &dyn Runner) {
 
 fn main() {
     println!("Hello, world!");
-    let mut aoc = day3::AOC2023_03::default();
-    let input_test1 = include_str!("./day3/input_t1.txt");
-    let input_test2 = include_str!("./day3/input_t2.txt");
-    let input_p = include_str!("./day3/input_p.txt");
+    let mut aoc = day4::AOC2023_04::default();
+    let input_test1 = include_str!("./day4/input_t1.txt");
+    let input_test2 = include_str!("./day4/input_t2.txt");
+    let input_p = include_str!("./day4/input_p.txt");
     print_runner(&aoc);
     aoc.parse(input_test1);
     let r = aoc.part1();
