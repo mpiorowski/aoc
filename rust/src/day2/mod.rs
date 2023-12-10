@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::Runner;
+
 const RED_CUBES: i32 = 12;
 const GREEN_CUBES: i32 = 13;
 const BLUE_CUBES: i32 = 14;
@@ -76,32 +78,47 @@ fn get_max_cubes(input: &str) -> HashMap<&Color, i32> {
     max_cubes
 }
 
-fn main() {
-    println!("Starting day2!");
+pub struct AOC2023_02 {
+    pub file: &'static str,
+}
 
-    let part1 = include_str!("./input.txt")
-        .lines()
-        .enumerate()
-        .map(|(i, line)| {
-            if check_possible(line) {
-                return (i + 1) as i32;
-            }
-            return 0;
-        })
-        .sum::<i32>();
-    println!("Result part 1: {}", part1);
+impl Runner for AOC2023_02 {
+    fn name(&self) -> &str {
+        "AOC2023_02"
+    }
 
-    let part2 = include_str!("./input.txt")
-        .lines()
-        .map(get_max_cubes)
-        .map(|max_cubes| {
-            let mut mult = 1;
-            for (_, cubes) in max_cubes.iter() {
-                mult *= cubes;
-            }
-            mult
-        })
-        .sum::<i32>();
+    fn parse(&mut self, filename: &'static str) -> () {
+        self.file = filename;
+    }
 
-    println!("Result part 2: {}", part2);
+    fn part1(&self) -> Result<i32, String> {
+        let r = self
+            .file
+            .lines()
+            .enumerate()
+            .map(|(i, line)| {
+                if check_possible(line) {
+                    return (i + 1) as i32;
+                }
+                return 0;
+            })
+            .sum::<i32>();
+        Ok(r)
+    }
+
+    fn part2(&self) -> Result<i32, String> {
+        let r = self
+            .file
+            .lines()
+            .map(get_max_cubes)
+            .map(|max_cubes| {
+                let mut mult = 1;
+                for (_, cubes) in max_cubes.iter() {
+                    mult *= cubes;
+                }
+                mult
+            })
+            .sum::<i32>();
+        Ok(r)
+    }
 }
