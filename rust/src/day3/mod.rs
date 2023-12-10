@@ -63,7 +63,30 @@ impl Runner for AOC2023_03 {
     }
 
     fn part2(&self) -> Result<i32, String> {
-        todo!()
+        let mut gears: HashSet<(i32, i32)> = HashSet::new();
+        for (row, line) in self.file.lines().enumerate() {
+            let line = format!("{}.", line);
+            for (col, char) in line.chars().enumerate() {
+                if char == '*' {
+                    gears.insert((row as i32, col as i32));
+                }
+            }
+        }
+        let mut total = 0;
+        for gear in gears {
+            let mut count = 0;
+            let mut numbers = Vec::new();
+            for part in &self.parts {
+                if part.adjacents.contains(&gear) {
+                    numbers.push(part.value);
+                    count += 1;
+                }
+            }
+            if count == 2 {
+                total += numbers[0] * numbers[1];
+            }
+        }
+        Ok(total)
     }
 }
 

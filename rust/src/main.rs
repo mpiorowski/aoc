@@ -26,10 +26,10 @@ fn main() {
     aoc.parse(input_p);
     let r = aoc.part1();
     println!("Result part1: {:?}", r);
-    // aoc.parse(input_test2);
-    // let r = aoc.part2();
-    // println!("Result part2 test: {:?}", r);
-    // aoc.parse(input_p);
-    // let r = aoc.part2();
-    // println!("Result part2: {:?}", r);
+    aoc.parse(input_test2);
+    let r = aoc.part2();
+    println!("Result part2 test: {:?}", r);
+    aoc.parse(input_p);
+    let r = aoc.part2();
+    println!("Result part2: {:?}", r);
 }
