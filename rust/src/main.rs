@@ -1,5 +1,6 @@
 mod day1;
 mod day2;
+mod day3;
 
 trait Runner {
     fn name(&self) -> &str;
@@ -14,18 +15,21 @@ fn print_runner(r: &dyn Runner) {
 
 fn main() {
     println!("Hello, world!");
-    let mut aoc = day2::AOC2023_02 { file: "" };
+    let mut aoc = day3::AOC2023_03::default();
+    let input_test1 = include_str!("./day3/input_t1.txt");
+    let input_test2 = include_str!("./day3/input_t2.txt");
+    let input_p = include_str!("./day3/input_p.txt");
     print_runner(&aoc);
-    aoc.parse(include_str!("./day2/input_t1.txt"));
+    aoc.parse(input_test1);
     let r = aoc.part1();
     println!("Result part1 test: {:?}", r);
-    aoc.parse(include_str!("./day2/input_p.txt"));
+    aoc.parse(input_p);
     let r = aoc.part1();
     println!("Result part1: {:?}", r);
-    aoc.parse(include_str!("./day2/input_t2.txt"));
-    let r = aoc.part2();
-    println!("Result part2 test: {:?}", r);
-    aoc.parse(include_str!("./day2/input_p.txt"));
-    let r = aoc.part2();
-    println!("Result part2: {:?}", r);
+    // aoc.parse(input_test2);
+    // let r = aoc.part2();
+    // println!("Result part2 test: {:?}", r);
+    // aoc.parse(input_p);
+    // let r = aoc.part2();
+    // println!("Result part2: {:?}", r);
 }

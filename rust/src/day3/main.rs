@@ -1,3 +1,5 @@
+use crate::Runner;
+
 fn map_digits(lines: &str) -> (Vec<(i32, Vec<String>)>, Vec<String>) {
     let mut digits_map: Vec<(i32, Vec<String>)> = Vec::new();
 
@@ -151,7 +153,7 @@ fn get_multi_two_digits_next_to_gear(
 fn main() {
     println!("Starting day3!");
 
-    let input = include_str!("./input.txt");
+    let input = include_str!("./input_p.txt");
 
     let map = map_digits(input);
     let result = map
