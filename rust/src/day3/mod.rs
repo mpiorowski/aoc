@@ -43,7 +43,7 @@ impl Runner for AOC2023_03 {
         }
     }
 
-    fn part1(&self) -> Result<i32, String> {
+    fn part1(&mut self) -> Result<i32, String> {
         let mut symbols: HashSet<(i32, i32)> = HashSet::new();
         for (row, line) in self.file.lines().enumerate() {
             let line = format!("{}.", line);
@@ -62,7 +62,7 @@ impl Runner for AOC2023_03 {
         Ok(total)
     }
 
-    fn part2(&self) -> Result<i32, String> {
+    fn part2(&mut self) -> Result<i32, String> {
         let mut gears: HashSet<(i32, i32)> = HashSet::new();
         for (row, line) in self.file.lines().enumerate() {
             let line = format!("{}.", line);

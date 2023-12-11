@@ -59,7 +59,7 @@ impl Runner for AOC2023_01 {
         self.file = file;
     }
 
-    fn part1(&self) -> Result<i32, String> {
+    fn part1(&mut self) -> Result<i32, String> {
         let lines = self.file.lines();
         let mut total = 0;
         for line in lines {
@@ -75,7 +75,7 @@ impl Runner for AOC2023_01 {
         Ok(total)
     }
 
-    fn part2(&self) -> Result<i32, String> {
+    fn part2(&mut self) -> Result<i32, String> {
         let lines = self.file.lines();
         let mut total = 0;
         for line in lines {

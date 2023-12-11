@@ -6,8 +6,8 @@ mod day4;
 trait Runner {
     fn name(&self) -> &str;
     fn parse(&mut self, filename: &'static str) -> ();
-    fn part1(&self) -> Result<i32, String>;
-    fn part2(&self) -> Result<i32, String>;
+    fn part1(&mut self) -> Result<i32, String>;
+    fn part2(&mut self) -> Result<i32, String>;
 }
 
 fn print_runner(r: &dyn Runner) {

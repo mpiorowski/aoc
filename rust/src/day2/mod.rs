@@ -91,7 +91,7 @@ impl Runner for AOC2023_02 {
         self.file = filename;
     }
 
-    fn part1(&self) -> Result<i32, String> {
+    fn part1(&mut self) -> Result<i32, String> {
         let r = self
             .file
             .lines()
@@ -106,7 +106,7 @@ impl Runner for AOC2023_02 {
         Ok(r)
     }
 
-    fn part2(&self) -> Result<i32, String> {
+    fn part2(&mut self) -> Result<i32, String> {
         let r = self
             .file
             .lines()

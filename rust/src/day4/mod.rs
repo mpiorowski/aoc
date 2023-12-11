@@ -55,7 +55,7 @@ impl Runner for AOC2023_04 {
         self.my_ticket = ticket;
     }
 
-    fn part1(&self) -> Result<i32, String> {
+    fn part1(&mut self) -> Result<i32, String> {
         let mut total = 0;
         for (index, ticket) in self.my_ticket.iter().enumerate() {
             let count = ticket.intersection(&self.winning_numbers[index]).count();
@@ -67,7 +67,31 @@ impl Runner for AOC2023_04 {
         Ok(total as i32)
     }
 
-    fn part2(&self) -> Result<i32, String> {
-        todo!()
+    fn part2(&mut self) -> Result<i32, String> {
+        let mut card_winnigs = Vec::new();
+        let mut total_cards = Vec::new();
+
+        for (index, ticket) in self.my_ticket.iter().enumerate() {
+            let count = ticket.intersection(&self.winning_numbers[index]).count();
+            card_winnigs.push(count as i32);
+            total_cards.push(1 as i32);
+        }
+
+        for (card_index, winnings) in card_winnigs.iter().enumerate() {
+            let mut ti = 0;
+            while &ti < &total_cards[card_index] {
+                let mut n: i32 = 0;
+                while &n < winnings {
+                    let i = n as usize;
+                    if (card_index + i + 1) >= total_cards.len() {
+                        break;
+                    }
+                    total_cards[card_index + i + 1] += 1;
+                    n += 1;
+                }
+                ti += 1;
+            }
+        }
+        Ok(total_cards.iter().sum())
     }
 }
