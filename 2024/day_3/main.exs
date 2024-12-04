@@ -10,9 +10,23 @@ defmodule Advent do
     end
   end
 
-  def extract_valid(original, on) do
+  def split_by_command(original, command) do
+    original
+    |> String.split(command, parts: 2)
+  end
+
+  def extract_valid(original, results, on) do
     command = if on, do: "do()", else: "don't()"
 
+    [first, second] =
+      original
+      |> split_by_command(command)
+
+    if !on do
+      results = results ++ [first]
+      results
+    end
+  end
 
   def extract_mul(content) do
     content
@@ -44,7 +58,7 @@ defmodule Advent do
 
   def run(filename \\ "input_test.txt") do
     process_file(filename)
-    |> extract_valid(true)
+    |> extract_valid([], false)
     # |> extract_mul()
     # |> parse_numbers()
     # |> multiple_tuples()
