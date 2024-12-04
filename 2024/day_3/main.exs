@@ -10,6 +10,10 @@ defmodule Advent do
     end
   end
 
+  def extract_valid(original, on) do
+    command = if on, do: "do()", else: "don't()"
+
+
   def extract_mul(content) do
     content
     |> String.split("mul(")
@@ -18,7 +22,7 @@ defmodule Advent do
     |> Enum.flat_map(&String.split(&1, ")"))
     |> Enum.filter(&String.contains?(&1, ","))
     |> Enum.map(&String.split(&1, ","))
-    |> Enum.filter(&length(&1) == 2)
+    |> Enum.filter(&(length(&1) == 2))
   end
 
   def parse_numbers(content) do
@@ -40,7 +44,8 @@ defmodule Advent do
 
   def run(filename \\ "input_test.txt") do
     process_file(filename)
-    |> extract_mul()
+    |> extract_valid(true)
+    # |> extract_mul()
     # |> parse_numbers()
     # |> multiple_tuples()
     # |> Enum.sum()
