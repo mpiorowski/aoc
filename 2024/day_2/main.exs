@@ -68,7 +68,7 @@ defmodule Advent do
     modified = List.delete_at(array, skipped)
 
     cond do
-      check?(modified) -> true
+      is_safe(modified) -> true
       skipped == length(original) - 1 -> false
       true -> do_check(original, skipped + 1, original)
     end
