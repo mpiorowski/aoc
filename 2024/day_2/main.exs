@@ -13,6 +13,32 @@ defmodule Advent do
     end
   end
 
+  def is_safe(list) do
+    case list do
+      [] -> false
+      [_] -> true
+      [a, b | _tail] when a > b -> is_safe_greater(list)
+      [a, b | _tail] when a < b -> is_safe_smaller(list)
+      _ -> false
+    end
+  end
+
+  def is_safe_greater(list) do
+    case list do
+      [_] -> true
+      [a, b | tail] when a > b and abs(a - b) <= 3 -> is_safe_greater([b | tail])
+      _ -> false
+    end
+  end
+
+  def is_safe_smaller(list) do
+    case list do
+      [_] -> true
+      [a, b | tail] when a < b and abs(b - a) <= 3 -> is_safe_smaller([b | tail])
+      _ -> false
+    end
+  end
+
   def check?(array) do
     case array do
       [] ->
@@ -48,7 +74,14 @@ defmodule Advent do
     end
   end
 
-  def run(filename \\ "input_test.txt") do
+  def run_part_1(filename \\ "input_test.txt") do
+    process_file(filename)
+    |> IO.inspect()
+    |> Enum.map(&is_safe(&1))
+    |> IO.inspect()
+  end
+
+  def run_part_2(filename \\ "input_test.txt") do
     process_file(filename)
     |> Enum.map(&check_all?/1)
     |> Enum.count(& &1)
@@ -57,5 +90,8 @@ defmodule Advent do
 end
 
 IO.puts("Advent of Code 2024 - Day 2")
-Advent.run()
-Advent.run("input.txt")
+IO.puts("Advent of Code 2024 - Day 2 - Part 1")
+Advent.run_part_1()
+IO.puts("Advent of Code 2024 - Day 2 - Part 2")
+Advent.run_part_2()
+Advent.run_part_2("input.txt")
