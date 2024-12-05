@@ -18,14 +18,22 @@ defmodule Advent do
   def extract_valid(original, results, on) do
     command = if on, do: "do()", else: "don't()"
 
-    [first, second] =
-      original
-      |> split_by_command(command)
+    case split_by_command(original, command) do
+      [first, second] ->
+        results = if !on, do: results ++ [first], else: results
+        extract_valid(second, results, !on)
 
-    if !on do
-      results = results ++ [first]
-      results
+      [first] ->
+        results = if !on, do: results ++ [first], else: results
+        results
+
+      [] ->
+        results
     end
+  end
+
+  def concat_array(array) do
+    Enum.reduce(array, "", fn x, acc -> acc <> x end)
   end
 
   def extract_mul(content) do
@@ -58,15 +66,18 @@ defmodule Advent do
 
   def run(filename \\ "input_test.txt") do
     process_file(filename)
+    |> IO.inspect()
     |> extract_valid([], false)
-    # |> extract_mul()
-    # |> parse_numbers()
-    # |> multiple_tuples()
-    # |> Enum.sum()
+    |> IO.inspect()
+    |> concat_array()
+    |> extract_mul()
+    |> parse_numbers()
+    |> multiple_tuples()
+    |> Enum.sum()
     |> IO.inspect()
   end
 end
 
 IO.puts("Advent of Code 2024 - Day 3")
 Advent.run()
-# Advent.run("input.txt")
+Advent.run("input.txt")
