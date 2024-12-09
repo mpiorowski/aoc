@@ -12,6 +12,17 @@ defmodule Advent do
     {-1, -1}
   ]
 
+  # top-left
+  # top-right
+  # bottom-left
+  # bottom-right
+  @diagonals [
+    {-1, -1},
+    {-1, 1},
+    {1, -1},
+    {1, 1}
+  ]
+
   def process_file(filename) do
     case File.read(filename) do
       {:ok, content} ->
@@ -26,6 +37,7 @@ defmodule Advent do
     end
   end
 
+  @spec get_next_letter(String.t()) :: String.t()
   def get_next_letter(letter) do
     case Enum.find_index(@letters, fn x -> x == letter end) do
       nil ->
@@ -36,73 +48,112 @@ defmodule Advent do
     end
   end
 
-  def start_looking(rows, row_index) do
-    count = 0
-    look_for_x(count, rows, row_index)
-  end
-
-  def look_for_x(count, rows, row_index) do
-    if row_index >= Enum.count(rows) do
-      count
-    end
-
-    row = rows |> Enum.at(row_index)
-
-    case Enum.find_index(row, fn x -> x == "X" end) do
-      nil ->
-        look_for_x(count, rows, row_index + 1)
-
-      column_index ->
-        Enum.each(@directions, fn direction ->
-          if look_for_letter(rows, row_index, column_index, direction, "M") do
-            count = count + 1
-            look_for_x(count, rows, row_index + 1)
-          end
+  @spec start_looking(list(list(String.t()))) :: integer()
+  def start_looking(rows) do
+    rows
+    |> Enum.with_index()
+    |> Enum.map(fn {row, row_index} ->
+      row
+      |> Enum.with_index()
+      |> Enum.filter(fn {col, _} -> col == "X" end)
+      |> Enum.map(fn {_, col_index} ->
+        Enum.count(@directions, fn direction ->
+          look_for_letter(rows, row_index, col_index, direction, "M")
         end)
-
-        count
-    end
+      end)
+    end)
+    |> List.flatten()
+    |> Enum.sum()
   end
 
-  def look_for_letter(rows, row_index, column_index, direction, letter) do
-    {row, column} = direction
-    row_index = row_index + row
-    column_index = column_index + column
+  def look_for_letter(rows, row_index, column_index, {row_delta, col_delta}, letter) do
+    new_row = row_index + row_delta
+    new_col = column_index + col_delta
 
-    case Enum.at(rows, row_index) do
-      nil ->
+    cond do
+      new_row < 0 or new_col < 0 ->
         false
 
-      row ->
-        case Enum.at(row, column_index) do
-          nil ->
-            false
+      new_row >= length(rows) or new_col >= length(Enum.at(rows, 0)) ->
+        false
 
-          l ->
-            if l == letter do
-              if l == "S" do
-                true
-              else
-                look_for_letter(
-                  rows,
-                  row_index,
-                  column_index,
-                  direction,
-                  get_next_letter(letter)
-                )
-              end
-            end
+      true ->
+        case Enum.at(Enum.at(rows, new_row), new_col) do
+          ^letter ->
+            letter == "S" or
+              look_for_letter(
+                rows,
+                new_row,
+                new_col,
+                {row_delta, col_delta},
+                get_next_letter(letter)
+              )
+
+          _ ->
+            false
         end
     end
   end
 
-  def run(filename \\ "input_test.txt") do
+  def look_for_diagonals(rows, row_index, column_index) do
+    @diagonals
+    |> Enum.map(fn {delta_row, delta_col} ->
+      new_row = row_index + delta_row
+      new_col = column_index + delta_col
+
+      cond do
+        new_row < 0 or new_col < 0 ->
+          0
+
+        new_row >= length(rows) ->
+          0
+
+        new_col >= length(Enum.at(rows, 0)) ->
+          0
+
+        true ->
+          rows
+          |> Enum.at(new_row)
+          |> Enum.at(new_col, 0)
+      end
+    end)
+  end
+
+  def start_looking_2(rows) do
+    rows
+    |> Enum.with_index()
+    |> Enum.map(fn {row, row_index} ->
+      row
+      |> Enum.with_index()
+      |> Enum.filter(fn {col, _} -> col == "A" end)
+      |> Enum.map(fn {_, col_index} ->
+        look_for_diagonals(rows, row_index, col_index)
+      end)
+      |> Enum.filter(fn array ->
+        Enum.count(array, &(&1 == "M")) == 2 and Enum.count(array, &(&1 == "S")) == 2 and
+          Enum.at(array, 0) != Enum.at(array, 3)
+      end)
+    end)
+  end
+
+  def run_part_1(filename \\ "input_test.txt") do
     process_file(filename)
-    |> start_looking(0)
+    |> start_looking()
+    |> IO.inspect()
+  end
+
+  def run_part_2(filename \\ "input_test.txt") do
+    process_file(filename)
+    |> start_looking_2()
+    |> Enum.flat_map(& &1)
+    |> IO.inspect()
+    |> length()
     |> IO.inspect()
   end
 end
 
 IO.puts("Advent of Code 2024 - Day 3")
-Advent.run()
-# Advent.run("input.txt")
+Advent.run_part_1()
+Advent.run_part_1("input.txt")
+Advent.run_part_2()
+Advent.run_part_2("input.txt")
