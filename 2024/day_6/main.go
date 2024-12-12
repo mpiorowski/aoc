@@ -14,12 +14,16 @@ type data struct {
 	grid                     map[string]string
 	initialCharacterPosition string
 	characterPosition        string
+    characterMove            int
 	iter                     int
-	obstacleIndex            int
-	obstaclePosition         string
-	obstacleDirection        string
-	countLoop                int
-	countAll                 int
+
+	obstacleIndex int
+
+	loopPosition  string
+	loopDirection string
+
+	countLoop int
+	countAll  int
 }
 
 const (
@@ -67,6 +71,8 @@ func (d *data) findCharacter() {
 
 func (d *data) moveCharacter(log bool, withObstacle bool) {
 	d.grid[d.characterPosition] = visited
+	initPosition := d.characterPosition
+	initDirection := d.direction
 
 	nextPosition := getNextPosition(d.characterPosition, d.direction)
 	if d.grid[nextPosition] == "" {
@@ -81,8 +87,9 @@ func (d *data) moveCharacter(log bool, withObstacle bool) {
 	}
 	if d.iter == d.obstacleIndex && withObstacle {
 		d.grid[nextPosition] = obstacle
-        d.obstaclePosition = d.characterPosition
 		d.direction = turnRight(d.direction)
+		d.loopPosition = initPosition
+		d.loopDirection = initDirection
 		nextPosition = getNextPosition(d.characterPosition, d.direction)
 	}
 	for d.grid[nextPosition] == occupied || d.grid[nextPosition] == obstacle {
@@ -90,11 +97,10 @@ func (d *data) moveCharacter(log bool, withObstacle bool) {
 		nextPosition = getNextPosition(d.characterPosition, d.direction)
 	}
 
-	if d.characterPosition == d.obstaclePosition && d.direction == d.obstacleDirection {
+	if initPosition == d.loopPosition && initDirection == d.loopDirection {
 		d.countLoop++
 	}
 	if d.countLoop > 2 {
-		fmt.Println("Loop detected")
 		d.countAll++
 		return
 	}
@@ -105,16 +111,16 @@ func (d *data) moveCharacter(log bool, withObstacle bool) {
 		d.log()
 	}
 	d.iter++
+    d.characterMove++
 
 	d.moveCharacter(log, withObstacle)
 }
 
 func (d *data) moveCharacterWithObstacle(log bool) {
 	d.moveCharacter(false, false)
-	count := d.countVisited()
-	fmt.Println("Visited:", count)
-	for count > 0 {
-		fmt.Println("Count:", count)
+    moves := d.characterMove
+    fmt.Println("Moves:", moves)
+	for moves > 0 {
 		d.iter = 0
 		d.countLoop = 0
 		d.grid = make(map[string]string)
@@ -125,7 +131,7 @@ func (d *data) moveCharacterWithObstacle(log bool) {
 		}
 		d.moveCharacter(log, true)
 		d.obstacleIndex++
-		count--
+        moves--
 	}
 }
 
@@ -145,7 +151,7 @@ func (d *data) log() {
 		fmt.Println(v)
 	}
 	fmt.Println("------------------------------------------------")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 }
 
 func turnRight(direction string) string {
@@ -218,7 +224,7 @@ func run_part_1(filename string) {
 	data.prepare(filename)
 	data.findCharacter()
 	data.moveCharacter(false, false)
-	fmt.Println("Visited part 1:", data.countVisited())
+    fmt.Println(data.countVisited())
 }
 
 func run_part_2(filename string) {
@@ -227,12 +233,13 @@ func run_part_2(filename string) {
 	}
 	data.prepare(filename)
 	data.findCharacter()
-	data.moveCharacterWithObstacle(true)
+	data.moveCharacterWithObstacle(false)
 	fmt.Println(data.countAll)
 }
 
 func main() {
 	run_part_1("input_test.txt")
+    run_part_1("input.txt")
 	run_part_2("input_test.txt")
-	// run("input.txt")
+    run_part_2("input.txt")
 }
