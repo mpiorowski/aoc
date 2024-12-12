@@ -14,17 +14,9 @@ type data struct {
 	grid                     map[string]string
 	initialCharacterPosition string
 	characterPosition        string
-    characterMove            int
-	iter                     int
-
-	obstacleIndex int
-
-	loopPosition  string
-	loopDirection string
-
-	countLoop int
-	countAll  int
 }
+
+var obstaclesPositions []string
 
 const (
 	empty     = "."
@@ -56,9 +48,6 @@ func (d *data) prepare(filename string) {
 		}
 		row++
 	}
-}
-
-func (d *data) findCharacter() {
 	for k, v := range d.grid {
 		if v == character {
 			d.characterPosition = k
@@ -66,92 +55,15 @@ func (d *data) findCharacter() {
 			return
 		}
 	}
-	panic("Character not found")
 }
 
-func (d *data) moveCharacter(log bool, withObstacle bool) {
-	d.grid[d.characterPosition] = visited
-	initPosition := d.characterPosition
-	initDirection := d.direction
-
-	nextPosition := getNextPosition(d.characterPosition, d.direction)
-	if d.grid[nextPosition] == "" {
-		if log {
-			d.log()
-		}
-		return
+func parsePosition(position string) (int, int) {
+	x, y := 0, 0
+	_, err := fmt.Sscanf(position, "x%dy%d", &x, &y)
+	if err != nil {
+		panic(fmt.Errorf("error parsing position: %w", err))
 	}
-	for d.grid[nextPosition] == occupied || d.grid[nextPosition] == obstacle {
-		d.direction = turnRight(d.direction)
-		nextPosition = getNextPosition(d.characterPosition, d.direction)
-	}
-	if d.iter == d.obstacleIndex && withObstacle {
-		d.grid[nextPosition] = obstacle
-		d.direction = turnRight(d.direction)
-		d.loopPosition = initPosition
-		d.loopDirection = initDirection
-		nextPosition = getNextPosition(d.characterPosition, d.direction)
-	}
-	for d.grid[nextPosition] == occupied || d.grid[nextPosition] == obstacle {
-		d.direction = turnRight(d.direction)
-		nextPosition = getNextPosition(d.characterPosition, d.direction)
-	}
-
-	if initPosition == d.loopPosition && initDirection == d.loopDirection {
-		d.countLoop++
-	}
-	if d.countLoop > 2 {
-		d.countAll++
-		return
-	}
-
-	d.grid[nextPosition] = character
-	d.characterPosition = nextPosition
-	if log {
-		d.log()
-	}
-	d.iter++
-    d.characterMove++
-
-	d.moveCharacter(log, withObstacle)
-}
-
-func (d *data) moveCharacterWithObstacle(log bool) {
-	d.moveCharacter(false, false)
-    moves := d.characterMove
-    fmt.Println("Moves:", moves)
-	for moves > 0 {
-		d.iter = 0
-		d.countLoop = 0
-		d.grid = make(map[string]string)
-		d.characterPosition = d.initialCharacterPosition
-		d.direction = "N"
-		for k, v := range d.initialGrid {
-			d.grid[k] = v
-		}
-		d.moveCharacter(log, true)
-		d.obstacleIndex++
-        moves--
-	}
-}
-
-func (d *data) countVisited() int {
-	count := 0
-	for _, v := range d.grid {
-		if v == visited {
-			count++
-		}
-	}
-	return count
-}
-
-func (d *data) log() {
-	array := gridToArray(d.grid)
-	for _, v := range array {
-		fmt.Println(v)
-	}
-	fmt.Println("------------------------------------------------")
-	time.Sleep(50 * time.Millisecond)
+	return x, y
 }
 
 func turnRight(direction string) string {
@@ -168,31 +80,101 @@ func turnRight(direction string) string {
 	return ""
 }
 
-func getNextPosition(position string, direction string) string {
-	x, y := parsePosition(position)
+func findNextPossiblePosition(
+	grid map[string]string,
+	currentPosition string,
+	direction string,
+) (string, string) {
+	x, y := parsePosition(currentPosition)
 	switch direction {
 	case "N":
 		y--
-	case "E":
-		x++
 	case "S":
 		y++
+	case "E":
+		x++
 	case "W":
 		x--
 	}
-	return "x" + fmt.Sprintf("%d", x) + "y" + fmt.Sprintf("%d", y)
-}
-
-func parsePosition(position string) (int, int) {
-	x, y := 0, 0
-	_, err := fmt.Sscanf(position, "x%dy%d", &x, &y)
-	if err != nil {
-		panic(fmt.Errorf("error parsing position: %w", err))
+	position := "x" + fmt.Sprintf("%d", x) + "y" + fmt.Sprintf("%d", y)
+	if grid[position] == "" {
+		return "", ""
 	}
-	return x, y
+	if grid[position] == empty || grid[position] == visited {
+		return position, direction
+	}
+	nextDirection := turnRight(direction)
+	return findNextPossiblePosition(grid, currentPosition, nextDirection)
 }
 
-func gridToArray(grid map[string]string) [][]string {
+func moveCharacter(grid map[string]string, characterPosition string, direction string, withObstacle bool, obstaclePosition string) {
+	visitedPositions := make(map[string]int)
+	for {
+		visitedPositions[characterPosition]++
+		grid[characterPosition] = visited
+		nextPosition, newDirection := findNextPossiblePosition(grid, characterPosition, direction)
+		if nextPosition == "" {
+			break
+		}
+		if withObstacle {
+			newGrid := make(map[string]string)
+			for k, v := range grid {
+				newGrid[k] = v
+			}
+			newGrid[nextPosition] = obstacle
+	//		p, d := findNextPossiblePosition(newGrid, characterPosition, direction)
+			moveCharacter(newGrid, characterPosition, direction, false, nextPosition)
+		}
+		characterPosition = nextPosition
+		direction = newDirection
+		if visitedPositions[characterPosition] > 5 && !withObstacle {
+			obstaclesPositions = append(obstaclesPositions, obstaclePosition)
+			break
+		}
+	}
+}
+
+func run_part_1(filename string) {
+	data := data{
+		direction: "N",
+	}
+	data.prepare(filename)
+	moveCharacter(data.grid, data.characterPosition, data.direction, false, "")
+	// Count the number of visited positions
+	count := 0
+	for _, v := range data.grid {
+		if v == visited {
+			count++
+		}
+	}
+	fmt.Println("Number of visited positions:", count)
+}
+
+func run_part_2(filename string) {
+	data := data{
+		direction: "N",
+	}
+	data.prepare(filename)
+    initialPosition := data.characterPosition
+	moveCharacter(data.grid, data.characterPosition, data.direction, true, "")
+    // Filter unique obstacles
+    obstacles := make(map[string]bool)
+    for _, v := range obstaclesPositions {
+        if v == initialPosition {
+            continue
+        }
+        obstacles[v] = true
+    }
+    fmt.Println("Number of unique obstacles:", len(obstacles))
+}
+
+func main() {
+	// run_part_1("input_test.txt")
+	// run_part_2("input_test.txt")
+	run_part_2("input.txt")
+}
+
+func log(grid map[string]string) {
 	var array [][]string
 	maxX, maxY := 0, 0
 	for k := range grid {
@@ -213,33 +195,9 @@ func gridToArray(grid map[string]string) [][]string {
 		}
 		array = append(array, row)
 	}
-	return array
-
-}
-
-func run_part_1(filename string) {
-	data := data{
-		direction: "N",
+	for _, v := range array {
+		fmt.Println(v)
 	}
-	data.prepare(filename)
-	data.findCharacter()
-	data.moveCharacter(false, false)
-    fmt.Println(data.countVisited())
-}
-
-func run_part_2(filename string) {
-	data := data{
-		direction: "N",
-	}
-	data.prepare(filename)
-	data.findCharacter()
-	data.moveCharacterWithObstacle(false)
-	fmt.Println(data.countAll)
-}
-
-func main() {
-	run_part_1("input_test.txt")
-    run_part_1("input.txt")
-	run_part_2("input_test.txt")
-    run_part_2("input.txt")
+	fmt.Println("------------------------------------------------")
+	time.Sleep(50 * time.Millisecond)
 }
