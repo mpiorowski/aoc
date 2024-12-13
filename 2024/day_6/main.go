@@ -162,22 +162,13 @@ func run(filename string) {
 
 	}
 
+    // Filter initial position
+    delete(obstacles, d.initialPosition)
 	fmt.Println("Number of obstacles:", len(obstacles))
-
-	// Filter unique obstacles
-	// initialPosition := data.characterPosition
-	// obstacles := make(map[string]bool)
-	// for _, v := range obstaclesPositions {
-	// 	if v == initialPosition {
-	// 		continue
-	// 	}
-	// 	obstacles[v] = true
-	// }
-	// fmt.Println("Number of unique obstacles:", len(obstacles))
 }
 
 func main() {
-	// run("input_test.txt")
+	run("input_test.txt")
 	run("input.txt")
 }
 
