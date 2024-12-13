@@ -107,10 +107,10 @@ func moveCharacter(
 	characterPosition string,
 	direction string,
 	visitedPositions map[string]int,
-	obstaclesPositions map[string]bool,
+    obstaclePosition string,
+	obstacles map[string]bool,
 ) (map[string]int, map[string]bool) {
 	for {
-		// fmt.Println("Character position:", characterPosition)
 		if characterPosition == "" {
 			break
 		}
@@ -119,14 +119,14 @@ func moveCharacter(
 		nextPosition, newDirection := findNextPossiblePosition(grid, characterPosition, direction)
 		// Check if we visited any position more then 4 times, then it's a loop
 		if visitedPositions[characterPosition] > 4 {
-			obstaclesPositions[characterPosition] = true
+			obstacles[obstaclePosition] = true
 			break
 		}
 		characterPosition = nextPosition
 		direction = newDirection
 		// log(grid)
 	}
-	return visitedPositions, obstaclesPositions
+	return visitedPositions, obstacles
 }
 
 func run(filename string) {
@@ -134,14 +134,14 @@ func run(filename string) {
 		direction: "N",
 	}
 	visitedPositions := make(map[string]int)
-	obstaclesPositions := make(map[string]bool)
+	obstacles := make(map[string]bool)
 	d.prepare(filename)
 
 	newGrid := make(map[string]string)
 	for k, v := range d.grid {
 		newGrid[k] = v
 	}
-	moveCharacter(newGrid, d.characterPosition, d.direction, visitedPositions, obstaclesPositions)
+	moveCharacter(newGrid, d.characterPosition, d.direction, visitedPositions, "", obstacles)
 
 	// Count visited positions
 	fmt.Println("Number of visited positions:", len(visitedPositions))
@@ -158,11 +158,11 @@ func run(filename string) {
 			characterPosition: d.initialPosition,
 		}
         newVisitedPositions := make(map[string]int)
-		moveCharacter(newGrid, d.characterPosition, d.direction, newVisitedPositions, obstaclesPositions)
+		moveCharacter(newGrid, d.characterPosition, d.direction, newVisitedPositions, v, obstacles)
 
 	}
 
-	fmt.Println("Number of obstacles:", len(obstaclesPositions))
+	fmt.Println("Number of obstacles:", len(obstacles))
 
 	// Filter unique obstacles
 	// initialPosition := data.characterPosition
@@ -177,8 +177,8 @@ func run(filename string) {
 }
 
 func main() {
-	run("input_test.txt")
-	// run("input.txt")
+	// run("input_test.txt")
+	run("input.txt")
 }
 
 func log(grid map[string]string) {
