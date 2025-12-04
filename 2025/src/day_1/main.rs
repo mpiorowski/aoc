@@ -1,7 +1,7 @@
 fn main() {
     println!("AOC 2025 - Day 1");
 
-    let input = include_str!("day_1/input_1.txt");
+    let input = include_str!("input_1.txt");
     let lines: Vec<&str> = input.lines().collect();
 
     let moves = lines
