@@ -1,2 +1,2 @@
 [tools]
-rust-analyzer = "latest"
+rust = { version = "latest", profile = "default", components = "rust-analyzer" }
