@@ -1,69 +1,79 @@
 use color_eyre::eyre::Result;
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
-    backend::CrosstermBackend,
+    DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
     widgets::{Block, Borders, Paragraph},
-    Terminal,
 };
-use std::{io, time::Duration};
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Setup error handling and terminal
     color_eyre::install()?;
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
 
-    // Run the app loop
-    let res = run_app(&mut terminal).await;
+    // Modern v0.29+ initialization
+    let mut terminal = ratatui::init();
 
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+    // Run the app result
+    let app_result = App::new().run(&mut terminal).await;
 
-    if let Err(err) = res {
-        println!("{:?}", err);
-    }
+    // Modern restore
+    ratatui::restore();
 
-    Ok(())
+    app_result
 }
 
-async fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
-    loop {
-        terminal.draw(|f| {
-            let size = f.area();
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .margin(1)
-                .constraints([Constraint::Percentage(100)].as_ref())
-                .split(size);
+/// Application state
+struct App {
+    exit: bool,
+}
 
-            let block = Block::default()
-                .title(" Advent of Code CLI ")
-                .borders(Borders::ALL);
-            let p = Paragraph::new("Welcome! Press 'q' to quit.").block(block);
-            f.render_widget(p, chunks[0]);
-        })?;
+impl App {
+    pub fn new() -> Self {
+        Self { exit: false }
+    }
 
-        if crossterm::event::poll(Duration::from_millis(100))? {
+    pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
+        while !self.exit {
+            terminal.draw(|frame| self.draw(frame))?;
+            self.handle_events()?;
+        }
+        Ok(())
+    }
+
+    fn draw(&self, frame: &mut Frame) {
+        let size = frame.area();
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([Constraint::Percentage(100)].as_ref())
+            .split(size);
+
+        let block = Block::default()
+            .title(" Advent of Code CLI ")
+            .borders(Borders::ALL);
+
+        let text = vec![
+            "Welcome to the AOC TUI (Modern Init)!",
+            "",
+            "Controls:",
+            "  'q' -> Quit",
+        ]
+        .join("\n");
+
+        let p = Paragraph::new(text).block(block);
+        frame.render_widget(p, chunks[0]);
+    }
+
+    fn handle_events(&mut self) -> Result<()> {
+        if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                if let KeyCode::Char('q') = key.code {
-                    return Ok(());
+                if key.code == KeyCode::Char('q') {
+                    self.exit = true;
                 }
             }
         }
+        Ok(())
     }
 }
+
