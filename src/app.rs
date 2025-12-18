@@ -204,6 +204,9 @@ impl App {
         }
     }
 
+    fn generate_missing_structure() {
+    }
+
     fn handle_events(&mut self) -> Result<()> {
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
