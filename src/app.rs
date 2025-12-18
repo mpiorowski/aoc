@@ -72,6 +72,10 @@ impl App {
         match &self.current_screen {
             CurrentScreen::Dashboard { year, day } => self.draw_dashboard(frame, year, day),
         }
+
+        if self.show_modal {
+            self.draw_selection_modal(frame);
+        }
     }
 
     fn draw_selection_modal(&self, frame: &mut Frame) {
@@ -278,6 +282,7 @@ impl App {
                     year: self.current_year.clone(),
                     day: selected_day,
                 };
+                self.show_modal = false;
             }
         }
     }
@@ -312,6 +317,12 @@ impl App {
                     // Enter
                     KeyCode::Enter => {
                         self.nav_enter();
+                    }
+
+                    // C
+                    KeyCode::Char('c') => {
+                        self.selection_level = SelectionLevel::Year;
+                        self.show_modal = !self.show_modal;
                     }
 
                     // Case 'e': Standard Error
