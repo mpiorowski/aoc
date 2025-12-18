@@ -14,30 +14,48 @@ use ratatui::{
 use std::time::Duration;
 
 pub enum CurrentScreen {
-    YearSelection,
-    DaySelection { year: String },
     Dashboard { year: String, day: String },
+}
+
+pub enum SelectionLevel {
+    Year,
+    Day,
 }
 
 pub struct App {
     pub exit: bool,
     pub current_screen: CurrentScreen,
 
+    pub show_modal: bool,
+    pub selection_level: SelectionLevel,
+
     pub available_years: Vec<String>,
     pub selected_year_index: usize,
     pub available_days: Vec<String>,
     pub selected_day_index: usize,
+
+    pub current_year: String,
+    pub current_day: String,
 }
 
 impl App {
     pub fn new() -> Self {
+        let init_year = 2025.to_string();
+        let init_day = 01.to_string();
         Self {
             exit: false,
-            current_screen: CurrentScreen::YearSelection,
+            show_modal: false,
+            selection_level: SelectionLevel::Year,
+            current_screen: CurrentScreen::Dashboard {
+                year: init_year.clone(),
+                day: init_day.clone(),
+            },
             available_years: vec!["2023".to_string(), "2024".to_string(), "2025".to_string()],
             selected_year_index: 0,
-            available_days: (1..=31).map(|d| format!("{:02}", d)).collect(),
+            available_days: (1..=25).map(|d| format!("{:02}", d)).collect(),
             selected_day_index: 0,
+            current_year: init_year,
+            current_day: init_day,
         }
     }
 
@@ -51,8 +69,6 @@ impl App {
 
     fn draw(&self, frame: &mut Frame) {
         match &self.current_screen {
-            CurrentScreen::YearSelection => self.draw_year_selection(frame),
-            CurrentScreen::DaySelection { year } => self.draw_day_selection(frame, year),
             CurrentScreen::Dashboard { year, day } => self.draw_dashboard(frame, year, day),
         }
     }
@@ -114,13 +130,33 @@ impl App {
             .block(title_block)
             .style(Style::default().fg(Color::Cyan));
         frame.render_widget(title_text, chunks[0]);
+
+        // 2. Day List
+        let items: Vec<ListItem> = self
+            .available_days
+            .iter()
+            .map(|day| ListItem::new(format!("Day {}", day)))
+            .collect();
+
+        let list = List::new(items)
+            .block(Block::default().title(" Days ").borders(Borders::ALL))
+            .highlight_style(
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::Green),
+            )
+            .highlight_symbol(">> ");
+
+        let mut state = ListState::default();
+        state.select(Some(self.selected_day_index));
+        frame.render_stateful_widget(list, chunks[1], &mut state);
     }
 
     fn draw_dashboard(&self, frame: &mut Frame, year: &String, day: &String) {
         let size = frame.area();
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .margin(1)
+            .margin(0)
             .constraints([Constraint::Percentage(100)].as_ref())
             .split(size);
 
@@ -136,7 +172,10 @@ impl App {
             "  'e' -> Return an Error (Test color-eyre)",
             "  'p' -> Trigger a Panic (Test panic hook)",
             "",
-            &format!("You are viewing the dashboard for Year: {}, Day: {}", year, day),
+            &format!(
+                "You are viewing the dashboard for Year: {}, Day: {}",
+                year, day
+            ),
         ]
         .join("\n");
 
@@ -144,52 +183,50 @@ impl App {
         frame.render_widget(p, chunks[0]);
     }
 
-    fn nav_up (&mut self) {
-        match &self.current_screen {
-            CurrentScreen::YearSelection => {
+    fn nav_up(&mut self) {
+        match &self.selection_level {
+            SelectionLevel::Year => {
                 if self.selected_year_index > 0 {
                     self.selected_year_index -= 1;
                 }
             }
-            CurrentScreen::DaySelection { .. } => {
+            SelectionLevel::Day => {
                 if self.selected_day_index > 0 {
                     self.selected_day_index -= 1;
                 }
             }
-            _ => {}
         }
     }
 
-    fn nav_down (&mut self) {
-        match &self.current_screen {
-            CurrentScreen::YearSelection => {
+    fn nav_down(&mut self) {
+        match &self.selection_level {
+            SelectionLevel::Year => {
                 if self.selected_year_index + 1 < self.available_years.len() {
                     self.selected_year_index += 1;
                 }
             }
-            CurrentScreen::DaySelection { .. } => {
+            SelectionLevel::Day => {
                 if self.selected_day_index + 1 < self.available_days.len() {
                     self.selected_day_index += 1;
                 }
             }
-            _ => {}
         }
     }
 
     fn nav_enter(&mut self) {
-        match &self.current_screen {
-            CurrentScreen::YearSelection => {
+        match &self.selection_level {
+            SelectionLevel::Year => {
                 let selected_year = self.available_years[self.selected_year_index].clone();
-                self.current_screen = CurrentScreen::DaySelection { year: selected_year };
+                self.current_year = selected_year;
+                self.selection_level = SelectionLevel::Day;
             }
-            CurrentScreen::DaySelection { year } => {
+            SelectionLevel::Day => {
                 let selected_day = self.available_days[self.selected_day_index].clone();
                 self.current_screen = CurrentScreen::Dashboard {
-                    year: year.clone(),
+                    year: self.current_year.clone(),
                     day: selected_day,
                 };
             }
-            _ => {}
         }
     }
 
