@@ -15,7 +15,7 @@ use ratatui::{
 use std::time::Duration;
 
 pub enum CurrentScreen {
-    Dashboard { year: String, day: String },
+    Dashboard,
 }
 
 pub enum SelectionLevel {
@@ -47,11 +47,8 @@ impl App {
             exit: false,
             show_modal: false,
             selection_level: SelectionLevel::Year,
-            current_screen: CurrentScreen::Dashboard {
-                year: init_year.clone(),
-                day: init_day.clone(),
-            },
-            available_years: vec!["2023".to_string(), "2024".to_string(), "2025".to_string()],
+            current_screen: CurrentScreen::Dashboard,
+            available_years: vec!["2025".to_string(), "2024".to_string(), "2023".to_string()],
             selected_year_index: 0,
             available_days: (1..=25).map(|d| format!("{:02}", d)).collect(),
             selected_day_index: 0,
@@ -70,7 +67,9 @@ impl App {
 
     fn draw(&self, frame: &mut Frame) {
         match &self.current_screen {
-            CurrentScreen::Dashboard { year, day } => self.draw_dashboard(frame, year, day),
+            CurrentScreen::Dashboard => {
+                self.draw_dashboard(frame, &self.current_year, &self.current_day)
+            }
         }
 
         if self.show_modal {
@@ -127,85 +126,6 @@ impl App {
                 Constraint::Percentage((100 - percent_x) / 2),
             ])
             .split(popup_layout[1])[1]
-    }
-
-    fn draw_year_selection(&self, frame: &mut Frame) {
-        let size = frame.area();
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(0)])
-            .margin(0)
-            .split(size);
-
-        // 1. Title
-        let title_block = Block::default()
-            .borders(Borders::ALL)
-            .title(" AoC Manager ");
-        let title_text = Paragraph::new("Select a Year to work on")
-            .block(title_block)
-            .style(Style::default().fg(Color::Cyan));
-        frame.render_widget(title_text, chunks[0]);
-
-        // 2. Year List
-        let items: Vec<ListItem> = self
-            .available_years
-            .iter()
-            .map(|year| ListItem::new(year.as_str()))
-            .collect();
-
-        // Highlight the selected item
-        let list = List::new(items)
-            .block(Block::default().title(" Years ").borders(Borders::ALL))
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Yellow),
-            )
-            .highlight_symbol(">> ");
-
-        // Create a temporary state to render the selection
-        // (In a real app with scrolling, we might persist this state in struct App)
-        let mut state = ListState::default();
-        state.select(Some(self.selected_year_index));
-        frame.render_stateful_widget(list, chunks[1], &mut state);
-    }
-
-    fn draw_day_selection(&self, frame: &mut Frame, year: &String) {
-        let size = frame.area();
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(0)])
-            .margin(0)
-            .split(size);
-
-        // 1. Title
-        let title_block = Block::default()
-            .borders(Borders::ALL)
-            .title(format!(" AoC Manager - Year {} ", year));
-        let title_text = Paragraph::new("Select a Day to work on")
-            .block(title_block)
-            .style(Style::default().fg(Color::Cyan));
-        frame.render_widget(title_text, chunks[0]);
-
-        // 2. Day List
-        let items: Vec<ListItem> = self
-            .available_days
-            .iter()
-            .map(|day| ListItem::new(format!("Day {}", day)))
-            .collect();
-
-        let list = List::new(items)
-            .block(Block::default().title(" Days ").borders(Borders::ALL))
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Green),
-            )
-            .highlight_symbol(">> ");
-
-        let mut state = ListState::default();
-        state.select(Some(self.selected_day_index));
-        frame.render_stateful_widget(list, chunks[1], &mut state);
     }
 
     fn draw_dashboard(&self, frame: &mut Frame, year: &String, day: &String) {
@@ -270,19 +190,16 @@ impl App {
     }
 
     fn nav_enter(&mut self) {
-        match &self.selection_level {
-            SelectionLevel::Year => {
-                let selected_year = self.available_years[self.selected_year_index].clone();
-                self.current_year = selected_year;
-                self.selection_level = SelectionLevel::Day;
-            }
-            SelectionLevel::Day => {
-                let selected_day = self.available_days[self.selected_day_index].clone();
-                self.current_screen = CurrentScreen::Dashboard {
-                    year: self.current_year.clone(),
-                    day: selected_day,
-                };
-                self.show_modal = false;
+        if self.show_modal {
+            match &self.selection_level {
+                SelectionLevel::Year => {
+                    self.current_year = self.available_years[self.selected_year_index].clone();
+                    self.selection_level = SelectionLevel::Day;
+                }
+                SelectionLevel::Day => {
+                    self.current_day = self.available_days[self.selected_day_index].clone();
+                    self.show_modal = false;
+                }
             }
         }
     }
