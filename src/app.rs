@@ -4,8 +4,9 @@ use color_eyre::{
     eyre::{Result, eyre},
 };
 use crossterm::event::{self, Event, KeyCode};
+use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{List, ListItem, ListState};
+use ratatui::widgets::{Clear, List, ListItem, ListState};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
@@ -71,6 +72,57 @@ impl App {
         match &self.current_screen {
             CurrentScreen::Dashboard { year, day } => self.draw_dashboard(frame, year, day),
         }
+    }
+
+    fn draw_selection_modal(&self, frame: &mut Frame) {
+        let area = self.centered_rect(60, 50, frame.area());
+        frame.render_widget(Clear, area);
+
+        let (title, items, selected_index) = match self.selection_level {
+            SelectionLevel::Year => (
+                " Select Year",
+                &self.available_years,
+                self.selected_year_index,
+            ),
+            SelectionLevel::Day => (" Select Day", &self.available_days, self.selected_day_index),
+        };
+
+        let list_items: Vec<ListItem> = items
+            .iter()
+            .map(|item| ListItem::new(item.as_str()))
+            .collect();
+
+        let list = List::new(list_items)
+            .block(Block::default().title(title).borders(Borders::ALL))
+            .highlight_style(
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::Yellow),
+            )
+            .highlight_symbol(">> ");
+
+        let mut state = ListState::default();
+        state.select(Some(selected_index));
+        frame.render_stateful_widget(list, area, &mut state);
+    }
+    fn centered_rect(&self, percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+        let popup_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ])
+            .split(r);
+
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ])
+            .split(popup_layout[1])[1]
     }
 
     fn draw_year_selection(&self, frame: &mut Frame) {
