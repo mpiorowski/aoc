@@ -53,7 +53,7 @@ impl App {
         match &self.current_screen {
             CurrentScreen::YearSelection => self.draw_year_selection(frame),
             CurrentScreen::DaySelection { year } => self.draw_day_selection(frame, year),
-            CurrentScreen::Dashboard { year, day } => self.draw_dashboard(frame),
+            CurrentScreen::Dashboard { year, day } => self.draw_dashboard(frame, year, day),
         }
     }
 
@@ -116,7 +116,7 @@ impl App {
         frame.render_widget(title_text, chunks[0]);
     }
 
-    fn draw_dashboard(&self, frame: &mut Frame) {
+    fn draw_dashboard(&self, frame: &mut Frame, year: &String, day: &String) {
         let size = frame.area();
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -135,6 +135,8 @@ impl App {
             "  'q' -> Quit",
             "  'e' -> Return an Error (Test color-eyre)",
             "  'p' -> Trigger a Panic (Test panic hook)",
+            "",
+            &format!("You are viewing the dashboard for Year: {}, Day: {}", year, day),
         ]
         .join("\n");
 
