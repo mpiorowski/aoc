@@ -50,6 +50,43 @@ A personal **TUI (Text User Interface)** tool written in Rust to streamline the 
 - **Performance Profiling:** Visual execution timer that compares Part 1 vs Part 2 runtimes (e.g., "Part 1: 4ms | Part 2: 15s").
 - **Visualizer Hook:** A dedicated TUI pane that listens for specific debug output to render live 2D grids or state visualizations for simulation puzzles.
 
+## Current Progress
+
+### Implemented
+- [x] Basic TUI structure with `ratatui` + `crossterm`
+- [x] Dashboard screen (`CurrentScreen::Dashboard`)
+- [x] Year/Day selection modal with centered popup
+- [x] Keyboard navigation (j/k, arrows, Enter, Esc, Ctrl+C)
+- [x] Two-level selection flow: Year → Day
+- [x] `color-eyre` integration for error/panic handling
+
+### In Progress
+- [ ] Execution system (subprocess-based runner)
+
+### Architecture Decisions
+
+#### Solution Execution: Subprocess Approach
+We chose **dynamic subprocess compilation** over baked-in solutions because:
+- Solutions are iterated many times during development
+- No TUI recompilation needed when writing new solutions
+- Compile errors can be displayed in TUI
+- Enables future watch mode (file change → auto-rerun)
+
+**Execution Flow:**
+1. User selects day and hits "Run"
+2. Compile: `rustc {year}/{day}/run.rs -o /tmp/aoc_runner`
+3. Execute: `echo "{input}" | /tmp/aoc_runner`
+4. Capture stdout/stderr
+5. Compare output to expected solution → visual pass/fail
+
+**Tech:** `tokio::process::Command` for async non-blocking execution
+
+### Not Started
+- [ ] Input management (test_input paste, expected solutions)
+- [ ] Execution & validation (run tests/solutions)
+- [ ] File system integration (read actual year/day directories)
+- [ ] Status indicators for completion state
+
 ## Collaboration Strategy
 - **User Role:** Lead Developer & Architect. Focuses on writing core logic, state management, and learning the `ratatui` ecosystem by doing.
 - **Agent Role:** Consultant & UI/UX Designer.

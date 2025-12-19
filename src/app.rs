@@ -12,6 +12,8 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     widgets::{Block, Borders, Paragraph},
 };
+use std::fs::{self, File};
+use std::path::Path;
 use std::time::Duration;
 
 pub enum CurrentScreen {
@@ -199,12 +201,35 @@ impl App {
                 SelectionLevel::Day => {
                     self.current_day = self.available_days[self.selected_day_index].clone();
                     self.show_modal = false;
+                    self.generate_missing_structure();
                 }
             }
         }
     }
 
-    fn generate_missing_structure() {
+    fn generate_missing_structure(&mut self) {
+        let base = format!("{}/{}", self.current_year, self.current_day);
+        if Path::new(&base).exists() {
+            return;
+        }
+        let _ = fs::create_dir_all(&base);
+        let files = [
+            "run.rs",
+            "test_input_1.txt",
+            "test_solution_1.txt",
+            "input_1.txt",
+            "test_input_2.txt",
+            "test_solution_2.txt",
+            "input_2.txt",
+        ];
+        for file in files {
+            let _ = File::create(format!("{}/{}", base, file));
+        }
+
+        let _ = fs::write(
+            format!("{}/run.rs", base),
+            "pub fn solve(input: &str) -> string {\n    todo!()\n}\n",
+        );
     }
 
     fn handle_events(&mut self) -> Result<()> {
