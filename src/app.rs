@@ -328,6 +328,10 @@ impl App {
             results.push('\n');
         }
 
+        if results.is_empty() {
+            results = "No inputs provided.\nAdd content to test.txt or input.txt".to_string();
+        }
+
         self.run_output = results;
         Ok(())
     }
