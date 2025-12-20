@@ -154,6 +154,7 @@ impl App {
             "",
             "Controls:",
             "  'q' -> Quit",
+            "  'c' -> Configure Year/Day",
             "  'r' -> Run Solution",
             "  'e' -> Return an Error (Test color-eyre)",
             "  'p' -> Trigger a Panic (Test panic hook)",
