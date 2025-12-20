@@ -28,13 +28,6 @@ pub enum SelectionLevel {
     Day,
 }
 
-pub enum InputMode {
-    Test1,
-    Input1,
-    Test2,
-    Inoput2,
-}
-
 pub struct App {
     pub exit: bool,
     pub current_screen: CurrentScreen,
@@ -49,9 +42,6 @@ pub struct App {
 
     pub current_year: String,
     pub current_day: String,
-
-    pub solution_1: String,
-    pub solution_2: String,
 
     pub run_output: String,
 }
@@ -71,8 +61,6 @@ impl App {
             selected_day_index: 0,
             current_year: init_year,
             current_day: init_day,
-            solution_1: "0".to_string(),
-            solution_2: "0".to_string(),
             run_output: String::new(),
         }
     }
@@ -128,6 +116,7 @@ impl App {
         state.select(Some(selected_index));
         frame.render_stateful_widget(list, area, &mut state);
     }
+
     fn centered_rect(&self, percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         let popup_layout = Layout::default()
             .direction(Direction::Vertical)
@@ -232,9 +221,10 @@ impl App {
     }
 
     async fn run_solution(&mut self) -> Result<()> {
-        self.run_output = "Running...".to_string();
+        self.run_output = "Compiling...".to_string();
 
-        let source_path = format!("{}/{}/run.rs", self.current_year, self.current_day);
+        let base = format!("{}/{}", self.current_year, self.current_day);
+        let source_path = format!("{}/run.rs", base);
         let bin_path = format!("/tmp/aoc_runner_{}_{}", self.current_year, self.current_day);
 
         // Compile
@@ -253,7 +243,7 @@ impl App {
             Ok(output) => {
                 if !output.status.success() {
                     self.run_output = format!(
-                        "Compilation Error: \n{}",
+                        "Compilation Error:\n{}",
                         String::from_utf8_lossy(&output.stderr)
                     );
                     return Ok(());
@@ -261,48 +251,111 @@ impl App {
             }
         }
 
-        // Read input file
-        let input_path = format!(
-            "{}/{}/test_input_1.txt",
-            self.current_year, self.current_day
-        );
-        let input_content = match fs::read_to_string(&input_path) {
-            Ok(content) => content,
-            Err(e) => {
-                self.run_output = format!("Failed to read input file {}: {}", input_path, e);
-                return Ok(());
-            }
-        };
+        // Load expected solutions
+        let solution_1 = fs::read_to_string(format!("{}/solution_1.txt", base))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let solution_2 = fs::read_to_string(format!("{}/solution_2.txt", base))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
 
-        // Run with input piped to stdin
-        let mut child = match Command::new(&bin_path)
+        let mut results = String::new();
+
+        // Run for each input file
+        for input_name in ["test", "input"] {
+            let input_path = format!("{}/{}.txt", base, input_name);
+            let input_content = match fs::read_to_string(&input_path) {
+                Ok(content) if !content.trim().is_empty() => content,
+                _ => continue, // skip missing or empty
+            };
+
+            let run_result = self.execute_binary(&bin_path, &input_content).await;
+
+            results.push_str(&format!("{}:\n", input_name));
+
+            match run_result {
+                Err(e) => results.push_str(&format!("  Error: {}\n", e)),
+                Ok((stdout, stderr)) => {
+                    // Parse PART1 and PART2 from output
+                    let mut part1 = None;
+                    let mut part2 = None;
+                    for line in stdout.lines() {
+                        if let Some(val) = line.strip_prefix("PART1:") {
+                            part1 = Some(val.to_string());
+                        } else if let Some(val) = line.strip_prefix("PART2:") {
+                            part2 = Some(val.to_string());
+                        }
+                    }
+
+                    // Format Part 1
+                    if let Some(p1) = &part1 {
+                        let status = if input_name == "test" {
+                            match &solution_1 {
+                                Some(exp) if exp == p1 => " ✓",
+                                Some(exp) => &format!(" ✗ (expected: {})", exp),
+                                None => "",
+                            }
+                        } else {
+                            ""
+                        };
+                        results.push_str(&format!("  Part 1: {}{}\n", p1, status));
+                    }
+
+                    // Format Part 2
+                    if let Some(p2) = &part2 {
+                        let status = if input_name == "test" {
+                            match &solution_2 {
+                                Some(exp) if exp == p2 => " ✓",
+                                Some(exp) => &format!(" ✗ (expected: {})", exp),
+                                None => "",
+                            }
+                        } else {
+                            ""
+                        };
+                        results.push_str(&format!("  Part 2: {}{}\n", p2, status));
+                    }
+
+                    // Show stderr, but hide todo!() panics entirely
+                    let is_todo_panic = stderr.contains("not yet implemented");
+                    if !is_todo_panic && !stderr.trim().is_empty() {
+                        results.push_str(&format!("  stderr: {}\n", stderr.trim()));
+                    }
+                }
+            }
+            results.push('\n');
+        }
+
+        self.run_output = results;
+        Ok(())
+    }
+
+    async fn execute_binary(
+        &self,
+        bin_path: &str,
+        input: &str,
+    ) -> std::result::Result<(String, String), String> {
+        let mut child = Command::new(bin_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-        {
-            Ok(child) => child,
-            Err(e) => {
-                self.run_output = format!("Failed to start runner: {}", e);
-                return Ok(());
-            }
-        };
+            .map_err(|e| format!("Failed to start: {}", e))?;
 
-        // Write input to stdin
         if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(input_content.as_bytes()).await;
+            let _ = stdin.write_all(input.as_bytes()).await;
         }
 
-        // Wait for output
-        match child.wait_with_output().await {
-            Err(e) => self.run_output = format!("Runtime Error: {}", e),
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                self.run_output = format!("STDOUT:\n{}\nSTDERR:\n{}", stdout, stderr);
-            }
-        }
-        Ok(())
+        let output = child
+            .wait_with_output()
+            .await
+            .map_err(|e| format!("Runtime error: {}", e))?;
+
+        Ok((
+            String::from_utf8_lossy(&output.stdout).to_string(),
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ))
     }
 
     fn generate_missing_structure(&mut self) {
@@ -311,15 +364,7 @@ impl App {
             return;
         }
         let _ = fs::create_dir_all(&base);
-        let files = [
-            "run.rs",
-            "test_input_1.txt",
-            "test_solution_1.txt",
-            "input_1.txt",
-            "test_input_2.txt",
-            "test_solution_2.txt",
-            "input_2.txt",
-        ];
+        let files = ["test.txt", "input.txt", "solution_1.txt", "solution_2.txt"];
         for file in files {
             let _ = File::create(format!("{}/{}", base, file));
         }
@@ -327,21 +372,50 @@ impl App {
         let template = format!(
             r#"// Advent of Code {year} - Day {day}
 use std::io::{{self, Read}};
+use std::panic::catch_unwind;
 
-pub fn solve(_input: &str) -> String {{
-    todo!("Solve AoC {year} Day {day}")
+fn solve_1(input: &str) -> String {{
+    todo!("Part 1")
+}}
+
+fn solve_2(input: &str) -> String {{
+    todo!("Part 2")
 }}
 
 fn main() {{
     let mut input = String::new();
     io::stdin().read_to_string(&mut input).unwrap();
-    println!("{{}}", solve(&input));
+    let input = input.trim().to_string();
+
+    match catch_unwind(|| solve_1(&input)) {{
+        Ok(result) => println!("PART1:{{}}", result),
+        Err(_) => println!("PART1:--"),
+    }}
+    match catch_unwind(|| solve_2(&input)) {{
+        Ok(result) => println!("PART2:{{}}", result),
+        Err(_) => println!("PART2:--"),
+    }}
 }}
 "#,
             year = self.current_year,
             day = self.current_day
         );
         let _ = fs::write(format!("{}/run.rs", base), template);
+
+        let cargo_toml = format!(
+            r#"[package]
+name = "aoc-{year}-{day}"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "run"
+path = "run.rs"
+"#,
+            year = self.current_year,
+            day = self.current_day
+        );
+        let _ = fs::write(format!("{}/Cargo.toml", base), cargo_toml);
     }
 
     async fn handle_events(&mut self) -> Result<()> {
@@ -376,13 +450,13 @@ fn main() {{
                         self.nav_enter();
                     }
 
-                    // c
+                    // c - config
                     KeyCode::Char('c') => {
                         self.selection_level = SelectionLevel::Year;
                         self.show_modal = !self.show_modal;
                     }
 
-                    // r
+                    // r - run
                     KeyCode::Char('r') => {
                         self.run_solution().await?;
                     }
