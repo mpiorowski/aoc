@@ -14,10 +14,10 @@ use ratatui::{
 };
 use std::fs::{self, File};
 use std::path::Path;
-use std::time::Duration;
-use tokio::process::Command;
 use std::process::Stdio;
+use std::time::Duration;
 use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
 
 pub enum CurrentScreen {
     Dashboard,
@@ -26,6 +26,13 @@ pub enum CurrentScreen {
 pub enum SelectionLevel {
     Year,
     Day,
+}
+
+pub enum InputMode {
+    Test1,
+    Input1,
+    Test2,
+    Inoput2,
 }
 
 pub struct App {
@@ -42,6 +49,9 @@ pub struct App {
 
     pub current_year: String,
     pub current_day: String,
+
+    pub solution_1: String,
+    pub solution_2: String,
 
     pub run_output: String,
 }
@@ -61,6 +71,8 @@ impl App {
             selected_day_index: 0,
             current_year: init_year,
             current_day: init_day,
+            solution_1: "0".to_string(),
+            solution_2: "0".to_string(),
             run_output: String::new(),
         }
     }
@@ -167,9 +179,7 @@ impl App {
         let p = Paragraph::new(text).block(block);
         frame.render_widget(p, chunks[0]);
 
-        let output_block = Block::default()
-            .title(" Output ")
-            .borders(Borders::ALL);
+        let output_block = Block::default().title(" Output ").borders(Borders::ALL);
 
         let output_p = Paragraph::new(self.run_output.clone()).block(output_block);
         frame.render_widget(output_p, chunks[1]);
@@ -252,7 +262,10 @@ impl App {
         }
 
         // Read input file
-        let input_path = format!("{}/{}/test_input_1.txt", self.current_year, self.current_day);
+        let input_path = format!(
+            "{}/{}/test_input_1.txt",
+            self.current_year, self.current_day
+        );
         let input_content = match fs::read_to_string(&input_path) {
             Ok(content) => content,
             Err(e) => {
