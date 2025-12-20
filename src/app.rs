@@ -15,6 +15,7 @@ use ratatui::{
 use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
+use tokio::process::Command;
 
 pub enum CurrentScreen {
     Dashboard,
@@ -39,6 +40,8 @@ pub struct App {
 
     pub current_year: String,
     pub current_day: String,
+
+    pub run_output: String,
 }
 
 impl App {
@@ -56,13 +59,14 @@ impl App {
             selected_day_index: 0,
             current_year: init_year,
             current_day: init_day,
+            run_output: String::new(),
         }
     }
 
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
+            self.handle_events().await?;
         }
         Ok(())
     }
@@ -207,6 +211,10 @@ impl App {
         }
     }
 
+    async fn run_solution() {
+        todo!()
+    }
+
     fn generate_missing_structure(&mut self) {
         let base = format!("{}/{}", self.current_year, self.current_day);
         if Path::new(&base).exists() {
@@ -232,7 +240,7 @@ impl App {
         );
     }
 
-    fn handle_events(&mut self) -> Result<()> {
+    async fn handle_events(&mut self) -> Result<()> {
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -264,10 +272,15 @@ impl App {
                         self.nav_enter();
                     }
 
-                    // C
+                    // c
                     KeyCode::Char('c') => {
                         self.selection_level = SelectionLevel::Year;
                         self.show_modal = !self.show_modal;
+                    }
+
+                    // r
+                    KeyCode::Char('c') => {
+                        self.run_solution().await?;
                     }
 
                     // Case 'e': Standard Error
