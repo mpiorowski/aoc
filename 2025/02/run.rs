@@ -1,4 +1,4 @@
-// Advent of Code 2025 - Day 01
+// Advent of Code 2025 - Day 02
 use std::io::{self, Read};
 
 pub fn solve(_input: &str) -> String {

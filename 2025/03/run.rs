@@ -1,8 +1,8 @@
-// Advent of Code 2025 - Day 01
+// Advent of Code 2025 - Day 03
 use std::io::{self, Read};
 
 pub fn solve(_input: &str) -> String {
-    todo!()
+    todo!("Solve AoC 2025 Day 03")
 }
 
 fn main() {

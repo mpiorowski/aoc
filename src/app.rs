@@ -16,6 +16,8 @@ use std::fs::{self, File};
 use std::path::Path;
 use std::time::Duration;
 use tokio::process::Command;
+use std::process::Stdio;
+use tokio::io::AsyncWriteExt;
 
 pub enum CurrentScreen {
     Dashboard,
@@ -46,8 +48,8 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let init_year = 2025.to_string();
-        let init_day = 01.to_string();
+        let init_year = "2025".to_string();
+        let init_day = "01".to_string();
         Self {
             exit: false,
             show_modal: false,
@@ -139,7 +141,7 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(0)
-            .constraints([Constraint::Percentage(100)].as_ref())
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(size);
 
         let block = Block::default()
@@ -151,6 +153,7 @@ impl App {
             "",
             "Controls:",
             "  'q' -> Quit",
+            "  'r' -> Run Solution",
             "  'e' -> Return an Error (Test color-eyre)",
             "  'p' -> Trigger a Panic (Test panic hook)",
             "",
@@ -163,6 +166,13 @@ impl App {
 
         let p = Paragraph::new(text).block(block);
         frame.render_widget(p, chunks[0]);
+
+        let output_block = Block::default()
+            .title(" Output ")
+            .borders(Borders::ALL);
+
+        let output_p = Paragraph::new(self.run_output.clone()).block(output_block);
+        frame.render_widget(output_p, chunks[1]);
     }
 
     fn nav_up(&mut self) {
@@ -211,8 +221,75 @@ impl App {
         }
     }
 
-    async fn run_solution() {
-        todo!()
+    async fn run_solution(&mut self) -> Result<()> {
+        self.run_output = "Running...".to_string();
+
+        let source_path = format!("{}/{}/run.rs", self.current_year, self.current_day);
+        let bin_path = format!("/tmp/aoc_runner_{}_{}", self.current_year, self.current_day);
+
+        // Compile
+        let compile_cmd = Command::new("rustc")
+            .arg(&source_path)
+            .arg("-o")
+            .arg(&bin_path)
+            .output()
+            .await;
+
+        match compile_cmd {
+            Err(e) => {
+                self.run_output = format!("Failed to start compiler: {}", e);
+                return Ok(());
+            }
+            Ok(output) => {
+                if !output.status.success() {
+                    self.run_output = format!(
+                        "Compilation Error: \n{}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                    return Ok(());
+                }
+            }
+        }
+
+        // Read input file
+        let input_path = format!("{}/{}/test_input_1.txt", self.current_year, self.current_day);
+        let input_content = match fs::read_to_string(&input_path) {
+            Ok(content) => content,
+            Err(e) => {
+                self.run_output = format!("Failed to read input file {}: {}", input_path, e);
+                return Ok(());
+            }
+        };
+
+        // Run with input piped to stdin
+        let mut child = match Command::new(&bin_path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(e) => {
+                self.run_output = format!("Failed to start runner: {}", e);
+                return Ok(());
+            }
+        };
+
+        // Write input to stdin
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(input_content.as_bytes()).await;
+        }
+
+        // Wait for output
+        match child.wait_with_output().await {
+            Err(e) => self.run_output = format!("Runtime Error: {}", e),
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                self.run_output = format!("STDOUT:\n{}\nSTDERR:\n{}", stdout, stderr);
+            }
+        }
+        Ok(())
     }
 
     fn generate_missing_structure(&mut self) {
@@ -234,10 +311,24 @@ impl App {
             let _ = File::create(format!("{}/{}", base, file));
         }
 
-        let _ = fs::write(
-            format!("{}/run.rs", base),
-            "pub fn solve(input: &str) -> string {\n    todo!()\n}\n",
+        let template = format!(
+            r#"// Advent of Code {year} - Day {day}
+use std::io::{{self, Read}};
+
+pub fn solve(_input: &str) -> String {{
+    todo!("Solve AoC {year} Day {day}")
+}}
+
+fn main() {{
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input).unwrap();
+    println!("{{}}", solve(&input));
+}}
+"#,
+            year = self.current_year,
+            day = self.current_day
         );
+        let _ = fs::write(format!("{}/run.rs", base), template);
     }
 
     async fn handle_events(&mut self) -> Result<()> {
@@ -279,7 +370,7 @@ impl App {
                     }
 
                     // r
-                    KeyCode::Char('c') => {
+                    KeyCode::Char('r') => {
                         self.run_solution().await?;
                     }
 
