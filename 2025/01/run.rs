@@ -67,7 +67,32 @@ fn solve_1(input: &str) -> String {
 }
 
 fn solve_2(input: &str) -> String {
-    todo!("Part 2")
+    let lines: Vec<&str> = input.lines().collect();
+
+    let moves = lines
+        .iter()
+        .map(|line| {
+            let dir = &line[0..1];
+            let dist: i32 = line[1..].parse().unwrap();
+            (dir, dist)
+        })
+        .collect::<Vec<(&str, i32)>>();
+    let start_position = 50;
+    let mut dial2 = Dial::new(100, start_position);
+    let mut counter = 0;
+    for (dir, dist) in &moves {
+        for _ in 0..*dist {
+            match *dir {
+                "L" => dial2.left(),
+                "R" => dial2.right(),
+                _ => panic!("Invalid direction"),
+            }
+            if dial2.position == 0 {
+                counter += 1;
+            }
+        }
+    }
+    return counter.to_string();
 }
 
 fn main() {
