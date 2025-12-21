@@ -111,16 +111,29 @@ impl App {
             .unwrap_or_default()
     }
 
-    fn save_config(&self) {
+    fn try_io<T>(&mut self, result: std::io::Result<T>, context: &str) -> Option<T> {
+        match result {
+            Ok(v) => Some(v),
+            Err(e) => {
+                self.error_message = Some(format!("{}: {}", context, e));
+                None
+            }
+        }
+    }
+
+    fn save_config(&mut self) {
         let config = Config {
             current_year: self.current_year.clone(),
             current_day: self.current_day.clone(),
             selected_year_index: self.selected_year_index,
             selected_day_index: self.selected_day_index,
         };
-        let _ = fs::write(
-            "config.json",
-            serde_json::to_string_pretty(&config).unwrap(),
+        self.try_io(
+            fs::write(
+                "config.json",
+                serde_json::to_string_pretty(&config).unwrap(),
+            ),
+            "Failed to save config",
         );
     }
 
@@ -677,7 +690,10 @@ impl App {
             .map_err(|e| format!("Failed to start: {}", e))?;
 
         if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(input.as_bytes()).await;
+            stdin
+                .write_all(input.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to write input: {}", e))?;
         }
 
         let output = child
@@ -696,10 +712,26 @@ impl App {
         if Path::new(&base).exists() {
             return;
         }
-        let _ = fs::create_dir_all(&base);
+
+        if self
+            .try_io(
+                fs::create_dir_all(&base),
+                &format!("Failed to create {}", base),
+            )
+            .is_none()
+        {
+            return;
+        }
+
         let files = ["test.txt", "input.txt", "solution_1.txt", "solution_2.txt"];
         for file in files {
-            let _ = File::create(format!("{}/{}", base, file));
+            let path = format!("{}/{}", base, file);
+            if self
+                .try_io(File::create(&path), &format!("Failed to create {}", path))
+                .is_none()
+            {
+                return;
+            }
         }
 
         let template = format!(
@@ -733,7 +765,16 @@ fn main() {{
             year = self.current_year,
             day = self.current_day
         );
-        let _ = fs::write(format!("{}/run.rs", base), template);
+
+        if self
+            .try_io(
+                fs::write(format!("{}/run.rs", base), template),
+                "Failed to write run.rs",
+            )
+            .is_none()
+        {
+            return;
+        }
 
         let cargo_toml = format!(
             r#"[package]
@@ -748,7 +789,11 @@ path = "run.rs"
             year = self.current_year,
             day = self.current_day
         );
-        let _ = fs::write(format!("{}/Cargo.toml", base), cargo_toml);
+
+        self.try_io(
+            fs::write(format!("{}/Cargo.toml", base), cargo_toml),
+            "Failed to write Cargo.toml",
+        );
     }
 
     async fn handle_events(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
@@ -802,6 +847,12 @@ path = "run.rs"
                         if let Err(e) = self.run_solution().await {
                             self.error_message = Some(e.to_string());
                         }
+                    }
+
+                    // e - mock error (for testing)
+                    KeyCode::Char('e') => {
+                        self.error_message =
+                            Some("This is a mock error to test the UI!".to_string());
                     }
                     _ => {}
                 }
