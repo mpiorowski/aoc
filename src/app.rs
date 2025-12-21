@@ -406,6 +406,10 @@ impl App {
                 SelectionLevel::Day => {
                     self.current_day = self.available_days[self.selected_day_index].clone();
                     self.show_modal = false;
+                    self.run_output = vec![Line::from(Span::styled(
+                        "Press 'r' to run solution",
+                        Style::default().fg(colors::MUTED_GRAY),
+                    ))];
                     self.generate_missing_structure();
                 }
             }
