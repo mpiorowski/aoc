@@ -1,22 +1,30 @@
-use color_eyre::SectionExt;
-use color_eyre::{
-    Section,
-    eyre::{Result, eyre},
-};
+use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode};
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::layout::{Alignment, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, List, ListItem, ListState};
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
     widgets::{Block, Borders, Paragraph},
 };
+
+// Nord color palette
+mod colors {
+    use ratatui::style::Color;
+    pub const FROST_CYAN: Color = Color::Rgb(136, 192, 208);    // #88C0D0
+    pub const AURORA_GREEN: Color = Color::Rgb(163, 190, 140);  // #A3BE8C
+    pub const AURORA_RED: Color = Color::Rgb(191, 97, 106);     // #BF616A
+    pub const AURORA_YELLOW: Color = Color::Rgb(235, 203, 139); // #EBCB8B
+    pub const SNOW_WHITE: Color = Color::Rgb(236, 239, 244);    // #ECEFF4
+    pub const MUTED_GRAY: Color = Color::Rgb(76, 86, 106);      // #4C566A
+}
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::path::Path;
 use std::process::Stdio;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
@@ -52,7 +60,8 @@ pub struct App {
     pub current_year: String,
     pub current_day: String,
 
-    pub run_output: String,
+    pub run_output: Vec<Line<'static>>,
+    pub error_message: Option<String>,
 }
 
 impl App {
@@ -65,7 +74,11 @@ impl App {
             current_screen: CurrentScreen::Dashboard,
             available_years: vec!["2025".to_string(), "2024".to_string(), "2023".to_string()],
             available_days: (1..=25).map(|d| format!("{:02}", d)).collect(),
-            run_output: String::new(),
+            run_output: vec![Line::from(Span::styled(
+                "Press 'r' to run solution",
+                Style::default().fg(colors::MUTED_GRAY),
+            ))],
+            error_message: None,
             // From config
             current_year: if config.current_year.is_empty() {
                 "2025".to_string()
@@ -114,7 +127,7 @@ impl App {
     fn draw(&self, frame: &mut Frame) {
         match &self.current_screen {
             CurrentScreen::Dashboard => {
-                self.draw_dashboard(frame, &self.current_year, &self.current_day)
+                self.draw_dashboard(frame);
             }
         }
 
@@ -129,24 +142,29 @@ impl App {
 
         let (title, items, selected_index) = match self.selection_level {
             SelectionLevel::Year => (
-                " Select Year",
+                " Select Year ",
                 &self.available_years,
                 self.selected_year_index,
             ),
-            SelectionLevel::Day => (" Select Day", &self.available_days, self.selected_day_index),
+            SelectionLevel::Day => (" Select Day ", &self.available_days, self.selected_day_index),
         };
 
         let list_items: Vec<ListItem> = items
             .iter()
-            .map(|item| ListItem::new(item.as_str()))
+            .map(|item| ListItem::new(item.as_str()).style(Style::default().fg(colors::SNOW_WHITE)))
             .collect();
 
         let list = List::new(list_items)
-            .block(Block::default().title(title).borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title(Span::styled(title, Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD)))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(colors::FROST_CYAN))
+            )
             .highlight_style(
                 Style::default()
                     .add_modifier(Modifier::BOLD)
-                    .fg(Color::Yellow),
+                    .fg(colors::AURORA_YELLOW),
             )
             .highlight_symbol(">> ");
 
@@ -175,42 +193,112 @@ impl App {
             .split(popup_layout[1])[1]
     }
 
-    fn draw_dashboard(&self, frame: &mut Frame, year: &String, day: &String) {
+    fn draw_dashboard(&self, frame: &mut Frame) {
         let size = frame.area();
-        let chunks = Layout::default()
+
+        // Main vertical layout: Header | Content | Footer
+        let main_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .margin(0)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .constraints([
+                Constraint::Length(3),  // Header
+                Constraint::Min(10),    // Content
+                Constraint::Length(3),  // Footer
+            ])
             .split(size);
 
-        let block = Block::default()
-            .title(" Advent of Code CLI ")
-            .borders(Borders::ALL);
+        self.draw_header(frame, main_chunks[0]);
 
-        let text = vec![
-            "Welcome to the AOC TUI (Modern Init + Error Handling)!",
-            "",
-            "Controls:",
-            "  'q' -> Quit",
-            "  'c' -> Configure Year/Day",
-            "  'r' -> Run Solution",
-            "  'e' -> Return an Error (Test color-eyre)",
-            "  'p' -> Trigger a Panic (Test panic hook)",
-            "",
-            &format!(
-                "You are viewing the dashboard for Year: {}, Day: {}",
-                year, day
+        // Content: Sidebar | Output
+        let content_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(25),  // Sidebar
+                Constraint::Percentage(75),  // Output
+            ])
+            .split(main_chunks[1]);
+
+        self.draw_sidebar(frame, content_chunks[0]);
+        self.draw_output(frame, content_chunks[1]);
+        self.draw_footer(frame, main_chunks[2]);
+    }
+
+    fn draw_header(&self, frame: &mut Frame, area: Rect) {
+        let title = Paragraph::new("Advent of Code CLI")
+            .style(Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))
+            .alignment(Alignment::Center)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(colors::FROST_CYAN)));
+        frame.render_widget(title, area);
+    }
+
+    fn draw_sidebar(&self, frame: &mut Frame, area: Rect) {
+        let base = format!("{}/{}", self.current_year, self.current_day);
+
+        // Check file existence for status indicators
+        let has_solution = Path::new(&format!("{}/run.rs", base)).exists();
+        let has_test = fs::read_to_string(format!("{}/test.txt", base))
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        let has_input = fs::read_to_string(format!("{}/input.txt", base))
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+
+        let indicator = |ready: bool| {
+            if ready {
+                Span::styled("●", Style::default().fg(colors::AURORA_GREEN))
+            } else {
+                Span::styled("○", Style::default().fg(colors::MUTED_GRAY))
+            }
+        };
+
+        let lines = vec![
+            Line::from(Span::styled(" CONFIG", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))),
+            Line::from(format!("  Year: {}", self.current_year)),
+            Line::from(format!("  Day:  {}", self.current_day)),
+            Line::from(""),
+            Line::from(Span::styled(" STATUS", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))),
+            Line::from(vec![Span::raw("  "), indicator(has_solution), Span::raw(" Solution")]),
+            Line::from(vec![Span::raw("  "), indicator(has_test), Span::raw(" Test Input")]),
+            Line::from(vec![Span::raw("  "), indicator(has_input), Span::raw(" Real Input")]),
+            Line::from(""),
+            Line::from(Span::styled(" KEYBINDS", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled("  c  Config", Style::default().fg(colors::SNOW_WHITE))),
+            Line::from(Span::styled("  r  Run", Style::default().fg(colors::SNOW_WHITE))),
+            Line::from(Span::styled("  q  Quit", Style::default().fg(colors::SNOW_WHITE))),
+        ];
+
+        let sidebar = Paragraph::new(lines)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(colors::FROST_CYAN)));
+        frame.render_widget(sidebar, area);
+    }
+
+    fn draw_output(&self, frame: &mut Frame, area: Rect) {
+        let output = Paragraph::new(self.run_output.clone())
+            .block(
+                Block::default()
+                    .title(Span::styled(" Output ", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD)))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(colors::FROST_CYAN))
+            )
+            .style(Style::default().fg(colors::SNOW_WHITE));
+        frame.render_widget(output, area);
+    }
+
+    fn draw_footer(&self, frame: &mut Frame, area: Rect) {
+        let (content, style) = match &self.error_message {
+            Some(err) => (
+                format!(" [ERROR] {}", err),
+                Style::default().fg(colors::SNOW_WHITE).bg(colors::AURORA_RED),
             ),
-        ]
-        .join("\n");
+            None => (
+                String::from(" Ready"),
+                Style::default().fg(colors::MUTED_GRAY),
+            ),
+        };
 
-        let p = Paragraph::new(text).block(block);
-        frame.render_widget(p, chunks[0]);
-
-        let output_block = Block::default().title(" Output ").borders(Borders::ALL);
-
-        let output_p = Paragraph::new(self.run_output.clone()).block(output_block);
-        frame.render_widget(output_p, chunks[1]);
+        let footer = Paragraph::new(content)
+            .style(style)
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(colors::FROST_CYAN)));
+        frame.render_widget(footer, area);
     }
 
     fn nav_up(&mut self) {
@@ -264,29 +352,53 @@ impl App {
         let source_path = format!("{}/run.rs", base);
         let bin_path = format!("/tmp/aoc_runner_{}_{}", self.current_year, self.current_day);
 
-        // Compile
+        let mut output_lines: Vec<Line<'static>> = Vec::new();
+
+        // Compile with timing
+        let compile_start = Instant::now();
         let compile_cmd = Command::new("rustc")
             .arg(&source_path)
             .arg("-o")
             .arg(&bin_path)
             .output()
             .await;
+        let compile_time = compile_start.elapsed();
 
         match compile_cmd {
             Err(e) => {
-                self.run_output = format!("Failed to start compiler: {}", e);
+                output_lines.push(Line::from(vec![
+                    Span::styled("✗ ", Style::default().fg(colors::AURORA_RED)),
+                    Span::styled(format!("Failed to start compiler: {}", e), Style::default().fg(colors::AURORA_RED)),
+                ]));
+                self.run_output = output_lines;
                 return Ok(());
             }
             Ok(output) => {
                 if !output.status.success() {
-                    self.run_output = format!(
-                        "Compilation Error:\n{}",
-                        String::from_utf8_lossy(&output.stderr)
-                    );
+                    output_lines.push(Line::from(vec![
+                        Span::styled("✗ ", Style::default().fg(colors::AURORA_RED)),
+                        Span::styled("Compilation Failed", Style::default().fg(colors::AURORA_RED).add_modifier(Modifier::BOLD)),
+                    ]));
+                    output_lines.push(Line::from(""));
+                    for line in String::from_utf8_lossy(&output.stderr).lines() {
+                        output_lines.push(Line::from(Span::styled(
+                            line.to_string(),
+                            Style::default().fg(colors::AURORA_RED),
+                        )));
+                    }
+                    self.run_output = output_lines;
                     return Ok(());
                 }
             }
         }
+
+        // Compilation succeeded
+        output_lines.push(Line::from(vec![
+            Span::styled("✓ ", Style::default().fg(colors::AURORA_GREEN)),
+            Span::styled("Compiled", Style::default().fg(colors::AURORA_GREEN)),
+            Span::styled(format!(" ({})", Self::format_duration(compile_time)), Style::default().fg(colors::MUTED_GRAY)),
+        ]));
+        output_lines.push(Line::from(""));
 
         // Load expected solutions
         let solution_1 = fs::read_to_string(format!("{}/solution_1.txt", base))
@@ -298,22 +410,35 @@ impl App {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
 
-        let mut results = String::new();
+        let mut has_any_input = false;
 
         // Run for each input file
         for input_name in ["test", "input"] {
             let input_path = format!("{}/{}.txt", base, input_name);
             let input_content = match fs::read_to_string(&input_path) {
                 Ok(content) if !content.trim().is_empty() => content,
-                _ => continue, // skip missing or empty
+                _ => continue,
             };
 
-            let run_result = self.execute_binary(&bin_path, &input_content).await;
+            has_any_input = true;
 
-            results.push_str(&format!("{}:\n", input_name));
+            // Section header
+            let header_style = Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD);
+            let header_text = if input_name == "test" { "TEST" } else { "INPUT" };
+            output_lines.push(Line::from(Span::styled(format!("─── {} ───", header_text), header_style)));
+
+            // Execute with timing
+            let run_start = Instant::now();
+            let run_result = self.execute_binary(&bin_path, &input_content).await;
+            let run_time = run_start.elapsed();
 
             match run_result {
-                Err(e) => results.push_str(&format!("  Error: {}\n", e)),
+                Err(e) => {
+                    output_lines.push(Line::from(vec![
+                        Span::styled("  ✗ Error: ", Style::default().fg(colors::AURORA_RED)),
+                        Span::raw(e),
+                    ]));
+                }
                 Ok((stdout, stderr)) => {
                     // Parse PART1 and PART2 from output
                     let mut part1 = None;
@@ -328,48 +453,104 @@ impl App {
 
                     // Format Part 1
                     if let Some(p1) = &part1 {
-                        let status = if input_name == "test" {
+                        let (status_icon, status_color) = if input_name == "test" {
                             match &solution_1 {
-                                Some(exp) if exp == p1 => " ✓",
-                                Some(exp) => &format!(" ✗ (expected: {})", exp),
-                                None => "",
+                                Some(exp) if exp == p1 => ("✓", colors::AURORA_GREEN),
+                                Some(_) => ("✗", colors::AURORA_RED),
+                                None => ("?", colors::AURORA_YELLOW),
                             }
                         } else {
-                            ""
+                            ("→", colors::FROST_CYAN)
                         };
-                        results.push_str(&format!("  Part 1: {}{}\n", p1, status));
+
+                        let mut spans = vec![
+                            Span::styled(format!("  {} ", status_icon), Style::default().fg(status_color)),
+                            Span::styled("Part 1: ", Style::default().fg(colors::MUTED_GRAY)),
+                            Span::styled(p1.clone(), Style::default().fg(colors::SNOW_WHITE).add_modifier(Modifier::BOLD)),
+                        ];
+
+                        if input_name == "test" {
+                            if let Some(exp) = &solution_1 {
+                                if exp != p1 {
+                                    spans.push(Span::styled(format!(" (expected: {})", exp), Style::default().fg(colors::AURORA_RED)));
+                                }
+                            }
+                        }
+
+                        output_lines.push(Line::from(spans));
                     }
 
                     // Format Part 2
                     if let Some(p2) = &part2 {
-                        let status = if input_name == "test" {
+                        let (status_icon, status_color) = if input_name == "test" {
                             match &solution_2 {
-                                Some(exp) if exp == p2 => " ✓",
-                                Some(exp) => &format!(" ✗ (expected: {})", exp),
-                                None => "",
+                                Some(exp) if exp == p2 => ("✓", colors::AURORA_GREEN),
+                                Some(_) => ("✗", colors::AURORA_RED),
+                                None => ("?", colors::AURORA_YELLOW),
                             }
                         } else {
-                            ""
+                            ("→", colors::FROST_CYAN)
                         };
-                        results.push_str(&format!("  Part 2: {}{}\n", p2, status));
+
+                        let mut spans = vec![
+                            Span::styled(format!("  {} ", status_icon), Style::default().fg(status_color)),
+                            Span::styled("Part 2: ", Style::default().fg(colors::MUTED_GRAY)),
+                            Span::styled(p2.clone(), Style::default().fg(colors::SNOW_WHITE).add_modifier(Modifier::BOLD)),
+                        ];
+
+                        if input_name == "test" {
+                            if let Some(exp) = &solution_2 {
+                                if exp != p2 {
+                                    spans.push(Span::styled(format!(" (expected: {})", exp), Style::default().fg(colors::AURORA_RED)));
+                                }
+                            }
+                        }
+
+                        output_lines.push(Line::from(spans));
                     }
+
+                    // Timing line
+                    output_lines.push(Line::from(Span::styled(
+                        format!("  ⏱  {}", Self::format_duration(run_time)),
+                        Style::default().fg(colors::MUTED_GRAY),
+                    )));
 
                     // Show stderr, but hide todo!() panics entirely
                     let is_todo_panic = stderr.contains("not yet implemented");
                     if !is_todo_panic && !stderr.trim().is_empty() {
-                        results.push_str(&format!("  stderr: {}\n", stderr.trim()));
+                        output_lines.push(Line::from(vec![
+                            Span::styled("  stderr: ", Style::default().fg(colors::AURORA_YELLOW)),
+                            Span::raw(stderr.trim().to_string()),
+                        ]));
                     }
                 }
             }
-            results.push('\n');
+            output_lines.push(Line::from(""));
         }
 
-        if results.is_empty() {
-            results = "No inputs provided.\nAdd content to test.txt or input.txt".to_string();
+        if !has_any_input {
+            output_lines.push(Line::from(Span::styled(
+                "No inputs provided.",
+                Style::default().fg(colors::AURORA_YELLOW),
+            )));
+            output_lines.push(Line::from(Span::styled(
+                "Add content to test.txt or input.txt",
+                Style::default().fg(colors::MUTED_GRAY),
+            )));
         }
 
-        self.run_output = results;
+        self.run_output = output_lines;
         Ok(())
+    }
+
+    fn format_duration(d: Duration) -> String {
+        if d.as_secs() >= 1 {
+            format!("{:.2}s", d.as_secs_f64())
+        } else if d.as_millis() >= 1 {
+            format!("{}ms", d.as_millis())
+        } else {
+            format!("{}µs", d.as_micros())
+        }
     }
 
     async fn execute_binary(
@@ -462,6 +643,9 @@ path = "run.rs"
     async fn handle_events(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
+                // Clear error on any key press
+                self.error_message = None;
+
                 match key.code {
                     KeyCode::Char('q') => self.exit = true,
                     // CTRL + C
@@ -501,23 +685,9 @@ path = "run.rs"
                     KeyCode::Char('r') => {
                         self.run_output = "Compiling...".to_string();
                         terminal.draw(|frame| self.draw(frame))?;
-                        self.run_solution().await?;
-                    }
-
-                    // Case 'e': Standard Error
-                    KeyCode::Char('e') => {
-                        return Err(eyre!("Simulated Error Triggered!"))
-                            .suggestion("Don't press 'e' next time.")
-                            .with_section(|| {
-                                "This is an extra section explaining why this error is fake."
-                                    .to_string()
-                                    .header("Context:")
-                            });
-                    }
-
-                    // Case 'p': Panic
-                    KeyCode::Char('p') => {
-                        panic!("Simulated Panic! This is a crash.");
+                        if let Err(e) = self.run_solution().await {
+                            self.error_message = Some(e.to_string());
+                        }
                     }
                     _ => {}
                 }
