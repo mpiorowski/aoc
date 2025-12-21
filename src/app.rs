@@ -13,12 +13,12 @@ use ratatui::{
 // Nord color palette
 mod colors {
     use ratatui::style::Color;
-    pub const FROST_CYAN: Color = Color::Rgb(136, 192, 208);    // #88C0D0
-    pub const AURORA_GREEN: Color = Color::Rgb(163, 190, 140);  // #A3BE8C
-    pub const AURORA_RED: Color = Color::Rgb(191, 97, 106);     // #BF616A
+    pub const FROST_CYAN: Color = Color::Rgb(136, 192, 208); // #88C0D0
+    pub const AURORA_GREEN: Color = Color::Rgb(163, 190, 140); // #A3BE8C
+    pub const AURORA_RED: Color = Color::Rgb(191, 97, 106); // #BF616A
     pub const AURORA_YELLOW: Color = Color::Rgb(235, 203, 139); // #EBCB8B
-    pub const SNOW_WHITE: Color = Color::Rgb(236, 239, 244);    // #ECEFF4
-    pub const MUTED_GRAY: Color = Color::Rgb(76, 86, 106);      // #4C566A
+    pub const SNOW_WHITE: Color = Color::Rgb(236, 239, 244); // #ECEFF4
+    pub const MUTED_GRAY: Color = Color::Rgb(76, 86, 106); // #4C566A
 }
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
@@ -146,7 +146,11 @@ impl App {
                 &self.available_years,
                 self.selected_year_index,
             ),
-            SelectionLevel::Day => (" Select Day ", &self.available_days, self.selected_day_index),
+            SelectionLevel::Day => (
+                " Select Day ",
+                &self.available_days,
+                self.selected_day_index,
+            ),
         };
 
         let list_items: Vec<ListItem> = items
@@ -157,9 +161,14 @@ impl App {
         let list = List::new(list_items)
             .block(
                 Block::default()
-                    .title(Span::styled(title, Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD)))
+                    .title(Span::styled(
+                        title,
+                        Style::default()
+                            .fg(colors::FROST_CYAN)
+                            .add_modifier(Modifier::BOLD),
+                    ))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(colors::FROST_CYAN))
+                    .border_style(Style::default().fg(colors::FROST_CYAN)),
             )
             .highlight_style(
                 Style::default()
@@ -200,9 +209,9 @@ impl App {
         let main_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // Header
-                Constraint::Min(10),    // Content
-                Constraint::Length(3),  // Footer
+                Constraint::Length(3), // Header
+                Constraint::Min(10),   // Content
+                Constraint::Length(3), // Footer
             ])
             .split(size);
 
@@ -212,8 +221,8 @@ impl App {
         let content_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(25),  // Sidebar
-                Constraint::Percentage(75),  // Output
+                Constraint::Percentage(25), // Sidebar
+                Constraint::Percentage(75), // Output
             ])
             .split(main_chunks[1]);
 
@@ -224,9 +233,17 @@ impl App {
 
     fn draw_header(&self, frame: &mut Frame, area: Rect) {
         let title = Paragraph::new("Advent of Code CLI")
-            .style(Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(colors::FROST_CYAN)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(colors::FROST_CYAN)));
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(colors::FROST_CYAN)),
+            );
         frame.render_widget(title, area);
     }
 
@@ -251,23 +268,62 @@ impl App {
         };
 
         let lines = vec![
-            Line::from(Span::styled(" CONFIG", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                " CONFIG",
+                Style::default()
+                    .fg(colors::FROST_CYAN)
+                    .add_modifier(Modifier::BOLD),
+            )),
             Line::from(format!("  Year: {}", self.current_year)),
             Line::from(format!("  Day:  {}", self.current_day)),
             Line::from(""),
-            Line::from(Span::styled(" STATUS", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))),
-            Line::from(vec![Span::raw("  "), indicator(has_solution), Span::raw(" Solution")]),
-            Line::from(vec![Span::raw("  "), indicator(has_test), Span::raw(" Test Input")]),
-            Line::from(vec![Span::raw("  "), indicator(has_input), Span::raw(" Real Input")]),
+            Line::from(Span::styled(
+                " STATUS",
+                Style::default()
+                    .fg(colors::FROST_CYAN)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(vec![
+                Span::raw("  "),
+                indicator(has_solution),
+                Span::raw(" Solution"),
+            ]),
+            Line::from(vec![
+                Span::raw("  "),
+                indicator(has_test),
+                Span::raw(" Test Input"),
+            ]),
+            Line::from(vec![
+                Span::raw("  "),
+                indicator(has_input),
+                Span::raw(" Real Input"),
+            ]),
             Line::from(""),
-            Line::from(Span::styled(" KEYBINDS", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD))),
-            Line::from(Span::styled("  c  Config", Style::default().fg(colors::SNOW_WHITE))),
-            Line::from(Span::styled("  r  Run", Style::default().fg(colors::SNOW_WHITE))),
-            Line::from(Span::styled("  q  Quit", Style::default().fg(colors::SNOW_WHITE))),
+            Line::from(Span::styled(
+                " KEYBINDS",
+                Style::default()
+                    .fg(colors::FROST_CYAN)
+                    .add_modifier(Modifier::BOLD),
+            )),
+            Line::from(Span::styled(
+                "  c  Config",
+                Style::default().fg(colors::SNOW_WHITE),
+            )),
+            Line::from(Span::styled(
+                "  r  Run",
+                Style::default().fg(colors::SNOW_WHITE),
+            )),
+            Line::from(Span::styled(
+                "  q  Quit",
+                Style::default().fg(colors::SNOW_WHITE),
+            )),
         ];
 
-        let sidebar = Paragraph::new(lines)
-            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(colors::FROST_CYAN)));
+        let sidebar = Paragraph::new(lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(colors::FROST_CYAN)),
+        );
         frame.render_widget(sidebar, area);
     }
 
@@ -275,9 +331,14 @@ impl App {
         let output = Paragraph::new(self.run_output.clone())
             .block(
                 Block::default()
-                    .title(Span::styled(" Output ", Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD)))
+                    .title(Span::styled(
+                        " Output ",
+                        Style::default()
+                            .fg(colors::FROST_CYAN)
+                            .add_modifier(Modifier::BOLD),
+                    ))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(colors::FROST_CYAN))
+                    .border_style(Style::default().fg(colors::FROST_CYAN)),
             )
             .style(Style::default().fg(colors::SNOW_WHITE));
         frame.render_widget(output, area);
@@ -287,7 +348,9 @@ impl App {
         let (content, style) = match &self.error_message {
             Some(err) => (
                 format!(" [ERROR] {}", err),
-                Style::default().fg(colors::SNOW_WHITE).bg(colors::AURORA_RED),
+                Style::default()
+                    .fg(colors::SNOW_WHITE)
+                    .bg(colors::AURORA_RED),
             ),
             None => (
                 String::from(" Ready"),
@@ -295,9 +358,11 @@ impl App {
             ),
         };
 
-        let footer = Paragraph::new(content)
-            .style(style)
-            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(colors::FROST_CYAN)));
+        let footer = Paragraph::new(content).style(style).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(colors::FROST_CYAN)),
+        );
         frame.render_widget(footer, area);
     }
 
@@ -368,7 +433,10 @@ impl App {
             Err(e) => {
                 output_lines.push(Line::from(vec![
                     Span::styled("✗ ", Style::default().fg(colors::AURORA_RED)),
-                    Span::styled(format!("Failed to start compiler: {}", e), Style::default().fg(colors::AURORA_RED)),
+                    Span::styled(
+                        format!("Failed to start compiler: {}", e),
+                        Style::default().fg(colors::AURORA_RED),
+                    ),
                 ]));
                 self.run_output = output_lines;
                 return Ok(());
@@ -377,7 +445,12 @@ impl App {
                 if !output.status.success() {
                     output_lines.push(Line::from(vec![
                         Span::styled("✗ ", Style::default().fg(colors::AURORA_RED)),
-                        Span::styled("Compilation Failed", Style::default().fg(colors::AURORA_RED).add_modifier(Modifier::BOLD)),
+                        Span::styled(
+                            "Compilation Failed",
+                            Style::default()
+                                .fg(colors::AURORA_RED)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                     ]));
                     output_lines.push(Line::from(""));
                     for line in String::from_utf8_lossy(&output.stderr).lines() {
@@ -396,7 +469,10 @@ impl App {
         output_lines.push(Line::from(vec![
             Span::styled("✓ ", Style::default().fg(colors::AURORA_GREEN)),
             Span::styled("Compiled", Style::default().fg(colors::AURORA_GREEN)),
-            Span::styled(format!(" ({})", Self::format_duration(compile_time)), Style::default().fg(colors::MUTED_GRAY)),
+            Span::styled(
+                format!(" ({})", Self::format_duration(compile_time)),
+                Style::default().fg(colors::MUTED_GRAY),
+            ),
         ]));
         output_lines.push(Line::from(""));
 
@@ -423,9 +499,18 @@ impl App {
             has_any_input = true;
 
             // Section header
-            let header_style = Style::default().fg(colors::FROST_CYAN).add_modifier(Modifier::BOLD);
-            let header_text = if input_name == "test" { "TEST" } else { "INPUT" };
-            output_lines.push(Line::from(Span::styled(format!("─── {} ───", header_text), header_style)));
+            let header_style = Style::default()
+                .fg(colors::FROST_CYAN)
+                .add_modifier(Modifier::BOLD);
+            let header_text = if input_name == "test" {
+                "TEST"
+            } else {
+                "INPUT"
+            };
+            output_lines.push(Line::from(Span::styled(
+                format!("─── {} ───", header_text),
+                header_style,
+            )));
 
             // Execute with timing
             let run_start = Instant::now();
@@ -464,15 +549,26 @@ impl App {
                         };
 
                         let mut spans = vec![
-                            Span::styled(format!("  {} ", status_icon), Style::default().fg(status_color)),
+                            Span::styled(
+                                format!("  {} ", status_icon),
+                                Style::default().fg(status_color),
+                            ),
                             Span::styled("Part 1: ", Style::default().fg(colors::MUTED_GRAY)),
-                            Span::styled(p1.clone(), Style::default().fg(colors::SNOW_WHITE).add_modifier(Modifier::BOLD)),
+                            Span::styled(
+                                p1.clone(),
+                                Style::default()
+                                    .fg(colors::SNOW_WHITE)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                         ];
 
                         if input_name == "test" {
                             if let Some(exp) = &solution_1 {
                                 if exp != p1 {
-                                    spans.push(Span::styled(format!(" (expected: {})", exp), Style::default().fg(colors::AURORA_RED)));
+                                    spans.push(Span::styled(
+                                        format!(" (expected: {})", exp),
+                                        Style::default().fg(colors::AURORA_RED),
+                                    ));
                                 }
                             }
                         }
@@ -493,15 +589,26 @@ impl App {
                         };
 
                         let mut spans = vec![
-                            Span::styled(format!("  {} ", status_icon), Style::default().fg(status_color)),
+                            Span::styled(
+                                format!("  {} ", status_icon),
+                                Style::default().fg(status_color),
+                            ),
                             Span::styled("Part 2: ", Style::default().fg(colors::MUTED_GRAY)),
-                            Span::styled(p2.clone(), Style::default().fg(colors::SNOW_WHITE).add_modifier(Modifier::BOLD)),
+                            Span::styled(
+                                p2.clone(),
+                                Style::default()
+                                    .fg(colors::SNOW_WHITE)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                         ];
 
                         if input_name == "test" {
                             if let Some(exp) = &solution_2 {
                                 if exp != p2 {
-                                    spans.push(Span::styled(format!(" (expected: {})", exp), Style::default().fg(colors::AURORA_RED)));
+                                    spans.push(Span::styled(
+                                        format!(" (expected: {})", exp),
+                                        Style::default().fg(colors::AURORA_RED),
+                                    ));
                                 }
                             }
                         }
@@ -683,7 +790,10 @@ path = "run.rs"
 
                     // r - run
                     KeyCode::Char('r') => {
-                        self.run_output = "Compiling...".to_string();
+                        self.run_output = vec![Line::from(Span::styled(
+                            "⟳ Compiling...",
+                            Style::default().fg(colors::AURORA_YELLOW),
+                        ))];
                         terminal.draw(|frame| self.draw(frame))?;
                         if let Err(e) = self.run_solution().await {
                             self.error_message = Some(e.to_string());
