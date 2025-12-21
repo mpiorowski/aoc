@@ -12,12 +12,21 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     widgets::{Block, Borders, Paragraph},
 };
+use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct Config {
+    pub current_year: String,
+    pub current_day: String,
+    pub selected_year_index: usize,
+    pub selected_day_index: usize,
+}
 
 pub enum CurrentScreen {
     Dashboard,
@@ -48,29 +57,58 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let init_year = "2025".to_string();
-        let init_day = "01".to_string();
+        let config = Self::load_config();
         Self {
             exit: false,
             show_modal: false,
             selection_level: SelectionLevel::Year,
             current_screen: CurrentScreen::Dashboard,
             available_years: vec!["2025".to_string(), "2024".to_string(), "2023".to_string()],
-            selected_year_index: 0,
             available_days: (1..=25).map(|d| format!("{:02}", d)).collect(),
-            selected_day_index: 0,
-            current_year: init_year,
-            current_day: init_day,
             run_output: String::new(),
+            // From config
+            current_year: if config.current_year.is_empty() {
+                "2025".to_string()
+            } else {
+                config.current_year
+            },
+            current_day: if config.current_day.is_empty() {
+                "01".to_string()
+            } else {
+                config.current_day
+            },
+            selected_year_index: config.selected_year_index,
+            selected_day_index: config.selected_day_index,
         }
     }
 
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events().await?;
+            self.handle_events(terminal).await?;
+            self.save_config();
         }
         Ok(())
+    }
+
+    fn load_config() -> Config {
+        fs::read_to_string("config.json")
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    }
+
+    fn save_config(&self) {
+        let config = Config {
+            current_year: self.current_year.clone(),
+            current_day: self.current_day.clone(),
+            selected_year_index: self.selected_year_index,
+            selected_day_index: self.selected_day_index,
+        };
+        let _ = fs::write(
+            "config.json",
+            serde_json::to_string_pretty(&config).unwrap(),
+        );
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -222,8 +260,6 @@ impl App {
     }
 
     async fn run_solution(&mut self) -> Result<()> {
-        self.run_output = "Compiling...".to_string();
-
         let base = format!("{}/{}", self.current_year, self.current_day);
         let source_path = format!("{}/run.rs", base);
         let bin_path = format!("/tmp/aoc_runner_{}_{}", self.current_year, self.current_day);
@@ -423,7 +459,7 @@ path = "run.rs"
         let _ = fs::write(format!("{}/Cargo.toml", base), cargo_toml);
     }
 
-    async fn handle_events(&mut self) -> Result<()> {
+    async fn handle_events(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -463,6 +499,8 @@ path = "run.rs"
 
                     // r - run
                     KeyCode::Char('r') => {
+                        self.run_output = "Compiling...".to_string();
+                        terminal.draw(|frame| self.draw(frame))?;
                         self.run_solution().await?;
                     }
 
